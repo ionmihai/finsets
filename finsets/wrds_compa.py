@@ -8,10 +8,12 @@ import os
 import pandas as pd
 import numpy as np
 import wrds 
-from . import wrds_utils
+
+import pandasmore as pdm
+from . import wrds_utils, wrds_links
 
 # %% auto 0
-__all__ = ['common_raw_vars', 'download']
+__all__ = ['common_raw_vars', 'download', 'clean']
 
 # %% ../nbs/wrds_compa.ipynb 3
 def common_raw_vars():
@@ -37,3 +39,12 @@ def download(vars: List[str]=common_raw_vars(),
                         where indfmt='INDL' and datafmt='STD' and popsrc='D' and consol='C'"""
     
     return wrds_utils.download(sql_string, wrds_username)
+
+# %% ../nbs/wrds_compa.ipynb 8
+def clean(df: pd.DataFrame, # If None, downloads the entire comp.funda dataset
+          ) -> pd.DataFrame:
+    
+    if df is None: df = download()
+    df = wrds_links.merge_permno_into_gvkey(dset_using_gvkey=df)
+    df = pdm.setup_panel(df, panel_ids='permno', time_var='datadate', freq='Y')
+    return df 
