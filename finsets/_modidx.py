@@ -5,4 +5,7 @@ d = { 'settings': { 'branch': 'main',
                 'doc_host': 'https://ionmihai.github.io',
                 'git_url': 'https://github.com/ionmihai/finsets',
                 'lib_path': 'finsets'},
-  'syms': {'finsets.wrds_compa': {'finsets.wrds_compa.common_raw_vars': ('wrds_compa.html#common_raw_vars', 'finsets/wrds_compa.py')}}}
+  'syms': { 'finsets.wrds_compa': { 'finsets.wrds_compa.common_raw_vars': ('wrds_compa.html#common_raw_vars', 'finsets/wrds_compa.py'),
+                                    'finsets.wrds_compa.download': ('wrds_compa.html#download', 'finsets/wrds_compa.py')},
+            'finsets.wrds_links': {'finsets.wrds_links.gvkey_permno': ('wrds_links.html#gvkey_permno', 'finsets/wrds_links.py')},
+            'finsets.wrds_utils': {'finsets.wrds_utils.download': ('wrds_utils.html#download', 'finsets/wrds_utils.py')}}}
