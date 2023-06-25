@@ -1,0 +1,9 @@
+project:
+  output-dir: _docs
+
+website:
+  title: "finsets"
+  site-url: "https://ionmihai.github.io/finsets"
+  description: "Download and process datasets commonly used in finance research"
+  repo-branch: main
+  repo-url: "https://github.com/ionmihai/finsets"
