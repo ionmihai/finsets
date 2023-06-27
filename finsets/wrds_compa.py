@@ -14,7 +14,7 @@ from . import wrds_utils, wrds_links
 
 # %% auto 0
 __all__ = ['default_raw_vars', 'download', 'clean', 'book_equity', 'investment_vars', 'profitability_vars', 'cashflow_vars',
-           'liquidity_vars', 'leverage_vars', 'payout_vars', 'value_vars']
+           'liquidity_vars', 'leverage_vars', 'payout_vars', 'value_vars', 'issuance_vars']
 
 # %% ../nbs/wrds_compa.ipynb 6
 def default_raw_vars():
@@ -179,3 +179,28 @@ def value_vars(df: pd.DataFrame,
     df['tobinq'] = (df['at'] - df['bookeq'] + df['prcc_f'] * df['csho']) / df['at']
 
     return  df[['tobinq']].copy()
+
+# %% ../nbs/wrds_compa.ipynb 41
+def issuance_vars(df: pd.DataFrame, 
+                list_reqs: bool=False # If true, just returns a list of the required variables
+                ) -> pd.DataFrame:
+    
+    reqs_subset = ['at','sstk','prstkc','dltis','dltr', 're', 'dlc','dltt']
+    reqs = reqs_subset + [x for x in book_equity(list_reqs=True) if x not in reqs_subset]
+    if list_reqs: return reqs
+    df = df[reqs].copy()
+
+    beq = book_equity(df)[['bookeq']].copy()
+    df = df.join(beq)
+    
+    df['lag_at'] = pdm.lag(df['at'])
+
+    df['equityiss_cfs'] = (df['sstk'].fillna(0) - df['prstkc'].fillna(0)) / df['lag_at']
+    df['debtiss_cfs'] = (df['dltis'].fillna(0) - df['dltr'].fillna(0)) / df['lag_at']
+
+    df['debtiss_bs'] = (pdm.rdiff(df['dltt']) + pdm.rdiff(df['dlc'].fillna(0))) / df['lag_at']
+
+    df['equityiss_tot'] = (pdm.rdiff(df['bookeq']) - pdm.rdiff(df['re'])) / df['lag_at']
+    df['debtiss_tot'] = (pdm.rdiff(df['at']) - pdm.rdiff(df['bookeq'])) / df['lag_at']
+
+    return df[['equityiss_tot','equityiss_cfs', 'debtiss_tot', 'debtiss_cfs', 'debtiss_bs']].copy()
