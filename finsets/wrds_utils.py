@@ -16,7 +16,7 @@ __all__ = ['download']
 def download(sql_string: str=None,
              wrds_username: str=None, #If None, looks for WRDS_USERNAME with `os.getenv`, then prompts you if needed
              ) -> pd.DataFrame:
-    """Downloads data from WRDS using the given `sql_string`"""
+    """Downloads data from WRDS using the given PostgreSQL `sql_string`"""
 
     if wrds_username is None:
         wrds_username = os.getenv('WRDS_USERNAME')
