@@ -18,5 +18,6 @@ d = { 'settings': { 'branch': 'main',
                                     'finsets.wrds_compa.profitability_vars': ( 'wrds_compa.html#profitability_vars',
                                                                                'finsets/wrds_compa.py'),
                                     'finsets.wrds_compa.value_vars': ('wrds_compa.html#value_vars', 'finsets/wrds_compa.py')},
-            'finsets.wrds_links': {'finsets.wrds_links.crspm_w_gvkey': ('wrds_links.html#crspm_w_gvkey', 'finsets/wrds_links.py')},
+            'finsets.wrds_links': { 'finsets.wrds_links.compa_w_permno': ('wrds_links.html#compa_w_permno', 'finsets/wrds_links.py'),
+                                    'finsets.wrds_links.crspm_w_gvkey': ('wrds_links.html#crspm_w_gvkey', 'finsets/wrds_links.py')},
             'finsets.wrds_utils': {'finsets.wrds_utils.download': ('wrds_utils.html#download', 'finsets/wrds_utils.py')}}}

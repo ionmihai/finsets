@@ -12,7 +12,7 @@ import wrds
 from . import wrds_utils
 
 # %% auto 0
-__all__ = ['crspm_w_gvkey']
+__all__ = ['crspm_w_gvkey', 'compa_w_permno']
 
 # %% ../nbs/wrds_links.ipynb 5
 def crspm_w_gvkey(wrds_username: str=None) -> pd.DataFrame:
@@ -26,4 +26,16 @@ def crspm_w_gvkey(wrds_username: str=None) -> pd.DataFrame:
                                                    AND c.linktype IN ('LU','LC') AND c.linkprim IN ('P','C')
                                                    AND a.date BETWEEN c.linkdt AND COALESCE(c.linkenddt, CURRENT_DATE)
                 """
+    return wrds_utils.download(sql_string, wrds_username)
+
+# %% ../nbs/wrds_links.ipynb 8
+def compa_w_permno(wrds_username: str=None) -> pd.DataFrame:
+    """COMPUSTAT Fundamentals Annual with permno's. As done by CCM."""
+    sql_string=f"""SELECT a.datadate, a.gvkey , b.lpermno as permno, b.lpermco as permco, b.liid as iid 
+                    FROM comp.funda a
+                    INNER JOIN crsp.ccmxpf_lnkhist  b ON a.gvkey = b.gvkey
+                    WHERE datadate BETWEEN b.linkdt AND COALESCE(b.linkenddt, CURRENT_DATE)
+                            AND b.linktype IN ('LU','LC') AND b.linkprim IN ('P','C')
+                            AND indfmt='INDL' AND datafmt='STD' AND popsrc='D' AND consol='C'"""
+    
     return wrds_utils.download(sql_string, wrds_username)
