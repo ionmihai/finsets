@@ -13,10 +13,12 @@ import pandasmore as pdm
 from . import wrds_utils, wrds_links
 
 # %% auto 0
-__all__ = ['common_raw_vars', 'download', 'clean']
+__all__ = ['default_raw_vars', 'download', 'clean', 'book_equity', 'investment_vars', 'profitability_vars', 'cashflow_vars',
+           'liquidity_vars', 'leverage_vars', 'payout_vars', 'value_vars']
 
-# %% ../nbs/wrds_compa.ipynb 3
-def common_raw_vars():
+# %% ../nbs/wrds_compa.ipynb 6
+def default_raw_vars():
+    """Takes about 2 min to download all available data on these variables"""
     return ['datadate', 'gvkey', 'cusip' ,'cik' ,'tic' ,'fyear' ,'fyr' ,'naicsh', 'sich' ,'exchg',  
             'lt' ,'at' ,'txditc' ,'pstkl' ,'pstkrv' ,'pstk' ,'csho' ,'ajex' , 'rdip',
             'act' ,'dvc' ,'xad','seq' ,'che' ,'lct' ,'dlc' ,'ib' ,'dvp' ,'txdi' ,'dp' ,
@@ -26,25 +28,154 @@ def common_raw_vars():
             'tstk' ,'wcap' ,'rect' ,'xsga' ,'aqc' ,'oibdp' ,'dpact' ,'fic' ,'ni' ,'ivao' ,'ivst' ,
             'dv' , 'intan' ,'pi' ,'txfo' ,'pifo' ,'xpp' ,'drc' ,'drlt' ,'ap' ,'xacc' ,'itcb']             
 
-# %% ../nbs/wrds_compa.ipynb 5
-def download(vars: List[str]=common_raw_vars(),
-             library: str='comp.funda', # WRDS Compustat library (must start with 'comp.')
+# %% ../nbs/wrds_compa.ipynb 8
+def download(vars: List[str]=None, # If None, downloads `default_raw_vars`
              wrds_username: str=None, #If None, looks for WRDS_USERNAME with `os.getenv`, then prompts you if needed
              ) -> pd.DataFrame:
-    """Downloads `vars` from WRDS `library`"""
+    """Downloads `vars` from WRDS comp.funda library and adds PERMNO and PERMCO as in CCM"""
 
-    always_get_these = ['datadate', 'gvkey']
-    vars = always_get_these + [x for x in vars if x not in always_get_these]
-    sql_string=f"""select {','.join(vars)} from {library}
-                        where indfmt='INDL' and datafmt='STD' and popsrc='D' and consol='C'"""
+    if vars is None: vars = default_raw_vars()
+    vars = ','.join(['a.gvkey', 'a.datadate'] + 
+                    [f'a.{x}' for x in vars if x not in ['datadate', 'gvkey']])
+
+    sql_string=f"""SELECT b.lpermno as permno, b.lpermco as permco, b.liid as iid, {vars}
+                    FROM comp.funda a
+                    INNER JOIN crsp.ccmxpf_lnkhist  b ON a.gvkey = b.gvkey
+                    WHERE datadate BETWEEN b.linkdt AND COALESCE(b.linkenddt, CURRENT_DATE)
+                            AND b.linktype IN ('LU','LC') AND b.linkprim IN ('P','C')
+                            AND indfmt='INDL' AND datafmt='STD' AND popsrc='D' AND consol='C'"""
     
     return wrds_utils.download(sql_string, wrds_username)
 
-# %% ../nbs/wrds_compa.ipynb 8
-def clean(df: pd.DataFrame, # If None, downloads the entire comp.funda dataset
+# %% ../nbs/wrds_compa.ipynb 11
+def clean(df: pd.DataFrame=None, # If None, downloads `download_vars`
+          download_vars: List[str]=None, # If None, downloads `default_raw_vars`
+          clean_kwargs: dict={}, # Params to pass to `pdm.setup_panel` other than `panel_ids`, `time_var`, and `freq`
           ) -> pd.DataFrame:
     
-    if df is None: df = download()
-    df = wrds_links.merge_permno_into_gvkey(dset_using_gvkey=df)
-    df = pdm.setup_panel(df, panel_ids='permno', time_var='datadate', freq='Y')
+    if df is None: df = download(vars=download_vars)
+    df = pdm.setup_panel(df, panel_ids='permno', time_var='datadate', freq='Y', **clean_kwargs)
     return df 
+
+# %% ../nbs/wrds_compa.ipynb 14
+def book_equity(df: pd.DataFrame=None, # If None, downloads (and cleans) only required vars
+                add_itcb=False,
+                list_reqs: bool=False # If true, just returns a list of the required variables
+                ) -> pd.DataFrame:
+
+    reqs = ['at', 'lt', 'seq', 'ceq', 'txditc', 'pstk', 'pstkrv', 'pstkl', 'itcb']
+    if list_reqs: return reqs
+    if df is None: df = clean(download_vars=reqs)
+    df = df[reqs].copy()
+
+    df['pstk'] = df['pstk'].fillna(0)
+    df['pref_stock'] = np.where(df['pstkrv'].isnull(), df['pstkl'], df['pstkrv'])
+    df['pref_stock'] = np.where(df['pref_stock'].isnull(),df['pstk'], df['pref_stock'])
+
+    df['shreq'] = np.where(df['seq'].isnull(), df['ceq'] + df['pstk'], df['seq'])
+    df['shreq'] = np.where(df['shreq'].isnull(), df['at'] - df['lt'], df['shreq'])
+
+    df['bookeq'] = df['shreq'] + df['txditc'].fillna(0) - df['pref_stock']
+    if add_itcb: df['bookeq'] = df['bookeq'] + df['itcb'].fillna(0)
+    
+    return df[['bookeq','shreq','pref_stock']].copy()
+
+# %% ../nbs/wrds_compa.ipynb 20
+def investment_vars(df: pd.DataFrame=None, # If None, downloads (and cleans) only required vars 
+                    list_reqs: bool=False # If true, just returns a list of the required variables
+                    ) -> pd.DataFrame:
+    
+    reqs = ['ppent','capx','at']
+    if list_reqs: return reqs
+    df = df[reqs].copy()
+
+    df['ppentpch'] = pdm.rpct_change(df['ppent'])
+    df['capx2la'] = df['capx'] / pdm.lag(df['at'])
+
+    return df[['ppentpch','capx2la']].copy()
+
+# %% ../nbs/wrds_compa.ipynb 23
+def profitability_vars(df: pd.DataFrame, 
+                    list_reqs: bool=False # If true, just returns a list of the required variables
+                    ) -> pd.DataFrame:
+    
+    reqs = ['ib','at']
+    if list_reqs: return reqs
+    df = df[reqs].copy()
+
+    df['roa'] = df['ib'] / df['at']
+
+    return df[['roa']].copy()
+
+# %% ../nbs/wrds_compa.ipynb 26
+def cashflow_vars(df: pd.DataFrame, 
+                    list_reqs: bool=False # If true, just returns a list of the required variables
+                    ) -> pd.DataFrame:
+    
+    reqs = ['dtdate','oancf','ib','dp','at']
+    if list_reqs: return reqs
+    df = df[reqs].copy()
+
+    df['cflow2la_is'] = (df['ib']+df['dp']) / pdm.lag(df['at'])
+    df['cflow2la_cfs'] = df['oancf'] / pdm.lag(df['at'])
+    df['cflow2la_full'] = np.where(df.dtdate.dt.year<1987, df['cflow2la_is'], df['cflow2la_cfs'])
+    
+    return df[['cflow2la_is', 'cflow2la_cfs', 'cflow2la_full']].copy()
+
+# %% ../nbs/wrds_compa.ipynb 29
+def liquidity_vars(df: pd.DataFrame, 
+                    list_reqs: bool=False # If true, just returns a list of the required variables
+                    ) -> pd.DataFrame:
+    
+    reqs = ['che','at']
+    if list_reqs: return reqs
+    df = df[reqs].copy()
+
+    df['cash2a'] = df['che'] / df['at']
+
+    return df[['cash2a']].copy()
+
+# %% ../nbs/wrds_compa.ipynb 32
+def leverage_vars(df: pd.DataFrame, 
+                    list_reqs: bool=False # If true, just returns a list of the required variables
+                    ) -> pd.DataFrame:
+    
+    reqs = ['dltt','dlc','at']
+    if list_reqs: return reqs
+    df = df[reqs].copy()
+
+    df['booklev'] = (df['dltt'] + df['dlc']) / df['at']
+    df.loc[df.booklev<0, 'booklev'] = 0
+    df.loc[df.booklev>1, 'booklev'] = 1
+        
+    return df[['booklev']].copy()
+
+# %% ../nbs/wrds_compa.ipynb 35
+def payout_vars(df: pd.DataFrame, 
+                    list_reqs: bool=False # If true, just returns a list of the required variables
+                    ) -> pd.DataFrame:
+    
+    reqs = ['dvc','prstkc','at']
+    if list_reqs: return reqs
+    df = df[reqs].copy()
+
+    df['div2la'] = df['dvc'].fillna(0) / pdm.lag(df['at'])
+    df['rep2la'] = df['prstkc'].fillna(0) / pdm.lag(df['at'])
+
+    return df[['div2la','rep2la']].copy()
+
+# %% ../nbs/wrds_compa.ipynb 38
+def value_vars(df: pd.DataFrame, 
+                list_reqs: bool=False # If true, just returns a list of the required variables
+                ) -> pd.DataFrame:
+    
+    reqs = ['at','prcc_f','csho'] + [x for x in book_equity(list_reqs=True) if x not in ['at','prcc_f','csho']]
+    if list_reqs: return reqs
+    df = df[reqs].copy()
+
+    beq = book_equity(df)[['bookeq']].copy()
+    df = df.join(beq)
+
+    df['tobinq'] = (df['at'] - df['bookeq'] + df['prcc_f'] * df['csho']) / df['at']
+
+    return  df[['tobinq']].copy()
