@@ -8,6 +8,4 @@ jobs:
       - uses: fastai/workflows/nbdev-ci@master
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
-          WRDS_USERNAME: ${{ secrets.WRDS_USERNAME }} 
-    			
-    		
+          WRDS_USERNAME: ${{ secrets.WRDS_USERNAME }}
