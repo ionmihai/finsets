@@ -16,9 +16,10 @@ from . import wrds_utils, wrds_links
 __all__ = ['default_raw_vars', 'download', 'clean', 'book_equity', 'investment_vars', 'profitability_vars', 'cashflow_vars',
            'liquidity_vars', 'leverage_vars', 'payout_vars', 'value_vars', 'issuance_vars']
 
-# %% ../nbs/wrds_compa.ipynb 6
+# %% ../nbs/wrds_compa.ipynb 3
 def default_raw_vars():
-    """Takes about 2 min to download all available data on these variables"""
+    """Default variables used in `download` if none are specified. Takes about 2 min to download."""
+
     return ['datadate', 'gvkey', 'cusip' ,'cik' ,'tic' ,'fyear' ,'fyr' ,'naicsh', 'sich' ,'exchg',  
             'lt' ,'at' ,'txditc' ,'pstkl' ,'pstkrv' ,'pstk' ,'csho' ,'ajex' , 'rdip',
             'act' ,'dvc' ,'xad','seq' ,'che' ,'lct' ,'dlc' ,'ib' ,'dvp' ,'txdi' ,'dp' ,
@@ -28,36 +29,43 @@ def default_raw_vars():
             'tstk' ,'wcap' ,'rect' ,'xsga' ,'aqc' ,'oibdp' ,'dpact' ,'fic' ,'ni' ,'ivao' ,'ivst' ,
             'dv' , 'intan' ,'pi' ,'txfo' ,'pifo' ,'xpp' ,'drc' ,'drlt' ,'ap' ,'xacc' ,'itcb']             
 
-# %% ../nbs/wrds_compa.ipynb 8
-def download(vars: List[str]=None, # If None, downloads `default_raw_vars`
+# %% ../nbs/wrds_compa.ipynb 5
+def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; else `permno`, `permco`, and `date` are added by default
              wrds_username: str=None, #If None, looks for WRDS_USERNAME with `os.getenv`, then prompts you if needed
+             start_date: str="01/01/1900", # Start date in MM/DD/YYYY format
+             end_date: str=None # End date. Default is current date
              ) -> pd.DataFrame:
-    """Downloads `vars` from WRDS comp.funda library and adds PERMNO and PERMCO as in CCM"""
+    """Downloads `vars` from `start_date` to `end_date` from WRDS comp.funda library and adds PERMNO and PERMCO as in CCM"""
 
     if vars is None: vars = default_raw_vars()
     vars = ','.join(['a.gvkey', 'a.datadate'] + 
                     [f'a.{x}' for x in vars if x not in ['datadate', 'gvkey']])
 
     sql_string=f"""SELECT b.lpermno as permno, b.lpermco as permco, b.liid as iid, {vars}
-                    FROM comp.funda a
-                    INNER JOIN crsp.ccmxpf_lnkhist  b ON a.gvkey = b.gvkey
+                    FROM comp.funda AS a
+                    INNER JOIN crsp.ccmxpf_lnkhist AS b ON a.gvkey = b.gvkey
                     WHERE datadate BETWEEN b.linkdt AND COALESCE(b.linkenddt, CURRENT_DATE)
                             AND b.linktype IN ('LU','LC') AND b.linkprim IN ('P','C')
-                            AND indfmt='INDL' AND datafmt='STD' AND popsrc='D' AND consol='C'"""
-    
-    return wrds_utils.download(sql_string, wrds_username)
+                            AND indfmt='INDL' AND datafmt='STD' AND popsrc='D' AND consol='C'
+                            AND datadate BETWEEN '{start_date}' AND COALESCE(%(end)s, CURRENT_DATE)
+                """
+    return wrds_utils.download(sql_string, wrds_username=wrds_username, params={'end':end_date})
 
-# %% ../nbs/wrds_compa.ipynb 11
-def clean(df: pd.DataFrame=None, # If None, downloads `download_vars`
-          download_vars: List[str]=None, # If None, downloads `default_raw_vars`
+# %% ../nbs/wrds_compa.ipynb 8
+def clean(df: pd.DataFrame=None, # If None, downloads `vars` using `download` function; else, must contain `permno` and `datadate` columns
+          vars: List[str]=None, # If None, downloads `default_raw_vars`
+          wrds_username: str=None, #If None, looks for WRDS_USERNAME with `os.getenv`, then prompts you if needed
+          start_date: str="01/01/1900", # Start date in MM/DD/YYYY format
+          end_date: str=None, # End date. Default is current date          
           clean_kwargs: dict={}, # Params to pass to `pdm.setup_panel` other than `panel_ids`, `time_var`, and `freq`
           ) -> pd.DataFrame:
-    
-    if df is None: df = download(vars=download_vars)
+    """Applies `pandasmore.setup_panel` to `df`. If `df` is None, downloads `vars` using `download` function."""
+
+    if df is None: df = download(vars=vars, wrds_username=wrds_username, start_date=start_date, end_date=end_date)
     df = pdm.setup_panel(df, panel_ids='permno', time_var='datadate', freq='Y', **clean_kwargs)
     return df 
 
-# %% ../nbs/wrds_compa.ipynb 14
+# %% ../nbs/wrds_compa.ipynb 11
 def book_equity(df: pd.DataFrame=None, # If None, downloads (and cleans) only required vars
                 add_itcb=False,
                 list_reqs: bool=False # If true, just returns a list of the required variables
@@ -80,7 +88,7 @@ def book_equity(df: pd.DataFrame=None, # If None, downloads (and cleans) only re
     
     return df[['bookeq','shreq','pref_stock']].copy()
 
-# %% ../nbs/wrds_compa.ipynb 20
+# %% ../nbs/wrds_compa.ipynb 17
 def investment_vars(df: pd.DataFrame=None, # If None, downloads (and cleans) only required vars 
                     list_reqs: bool=False # If true, just returns a list of the required variables
                     ) -> pd.DataFrame:
@@ -94,7 +102,7 @@ def investment_vars(df: pd.DataFrame=None, # If None, downloads (and cleans) onl
 
     return df[['ppentpch','capx2la']].copy()
 
-# %% ../nbs/wrds_compa.ipynb 23
+# %% ../nbs/wrds_compa.ipynb 20
 def profitability_vars(df: pd.DataFrame, 
                     list_reqs: bool=False # If true, just returns a list of the required variables
                     ) -> pd.DataFrame:
@@ -107,7 +115,7 @@ def profitability_vars(df: pd.DataFrame,
 
     return df[['roa']].copy()
 
-# %% ../nbs/wrds_compa.ipynb 26
+# %% ../nbs/wrds_compa.ipynb 23
 def cashflow_vars(df: pd.DataFrame, 
                     list_reqs: bool=False # If true, just returns a list of the required variables
                     ) -> pd.DataFrame:
@@ -122,7 +130,7 @@ def cashflow_vars(df: pd.DataFrame,
     
     return df[['cflow2la_is', 'cflow2la_cfs', 'cflow2la_full']].copy()
 
-# %% ../nbs/wrds_compa.ipynb 29
+# %% ../nbs/wrds_compa.ipynb 26
 def liquidity_vars(df: pd.DataFrame, 
                     list_reqs: bool=False # If true, just returns a list of the required variables
                     ) -> pd.DataFrame:
@@ -135,7 +143,7 @@ def liquidity_vars(df: pd.DataFrame,
 
     return df[['cash2a']].copy()
 
-# %% ../nbs/wrds_compa.ipynb 32
+# %% ../nbs/wrds_compa.ipynb 29
 def leverage_vars(df: pd.DataFrame, 
                     list_reqs: bool=False # If true, just returns a list of the required variables
                     ) -> pd.DataFrame:
@@ -150,7 +158,7 @@ def leverage_vars(df: pd.DataFrame,
         
     return df[['booklev']].copy()
 
-# %% ../nbs/wrds_compa.ipynb 35
+# %% ../nbs/wrds_compa.ipynb 32
 def payout_vars(df: pd.DataFrame, 
                     list_reqs: bool=False # If true, just returns a list of the required variables
                     ) -> pd.DataFrame:
@@ -164,7 +172,7 @@ def payout_vars(df: pd.DataFrame,
 
     return df[['div2la','rep2la']].copy()
 
-# %% ../nbs/wrds_compa.ipynb 38
+# %% ../nbs/wrds_compa.ipynb 35
 def value_vars(df: pd.DataFrame, 
                 list_reqs: bool=False # If true, just returns a list of the required variables
                 ) -> pd.DataFrame:
@@ -180,7 +188,7 @@ def value_vars(df: pd.DataFrame,
 
     return  df[['tobinq']].copy()
 
-# %% ../nbs/wrds_compa.ipynb 41
+# %% ../nbs/wrds_compa.ipynb 38
 def issuance_vars(df: pd.DataFrame, 
                 list_reqs: bool=False # If true, just returns a list of the required variables
                 ) -> pd.DataFrame:

@@ -2,7 +2,7 @@
 
 # %% ../nbs/wrds_utils.ipynb 2
 from __future__ import annotations
-from typing import List, Dict, Tuple, Callable
+from typing import List, Dict, Tuple, Callable, Sequence
 import os
 
 import pandas as pd
@@ -12,9 +12,10 @@ import wrds
 # %% auto 0
 __all__ = ['download']
 
-# %% ../nbs/wrds_utils.ipynb 3
+# %% ../nbs/wrds_utils.ipynb 10
 def download(sql_string: str=None,
              wrds_username: str=None, #If None, looks for WRDS_USERNAME with `os.getenv`, then prompts you if needed
+             params: Sequence=None # Params cited in the `sql_string`
              ) -> pd.DataFrame:
     """Downloads data from WRDS using the given PostgreSQL `sql_string`"""
 
@@ -23,6 +24,6 @@ def download(sql_string: str=None,
         if wrds_username is None: wrds_username = input("Enter your WRDS username: ") 
 
     dbconn = wrds.Connection(wrds_username = wrds_username)
-    try : df = dbconn.raw_sql(sql=sql_string)
+    try : df = dbconn.raw_sql(sql=sql_string, params=params)
     finally: dbconn.close() 
     return df
