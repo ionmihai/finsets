@@ -17,4 +17,50 @@ pip install finsets
 
 ``` python
 import finsets as fds
+import wrds
 ```
+
+## WRDS
+
+Before you use any of the `wrds_` modules, you need to create a `pgpass`
+with your WRDS credentials. To do that, run
+
+``` python
+db = wrds.Connection()
+```
+
+This will prompt you for your WRDS username and password.
+
+After you enter your credentials, if you don’t have a pgpass file
+already set up, it will ask you if you want to do that. Hit `y` and it
+will be automatically created for you. After this, you will never have
+to input your WRDS password.
+
+You will still have to supply your WRDS username to functions that
+retrieve data from WRDS (all of them have a `wrds_username` parameter).
+You you don’t want to supply the username either, save it under a
+`WRDS_USERNAME` environment variable. It will get fetched automatically
+with `os.getenv("WRDS_USERNAME")`.
+
+The functions in the `wrds_` modules will close database connections to
+WRDS automatically. However, if you open a connection manually, as above
+(with `wrds.Connection()`) make sure you remember to close that
+connection. In our example above:
+
+``` python
+db.close()
+```
+
+Check the `wrds_utils` module for an introduction to some of the main
+utilities that come with the `wrds` package.
+
+## FRED
+
+To use the functions in the `fred` module, you’ll need an API key from
+the St. Louis FRED.
+
+Get one [here](https://fred.stlouisfed.org/docs/api/api_key.html) and
+store it in your environment variables under the name `FRED_API_KEY`
+
+Alternatively, you can supply the API key directly as the `api_key`
+parameter in each function in the `fred` module.
