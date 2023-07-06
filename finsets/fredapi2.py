@@ -34,7 +34,7 @@ class Fred:
         """
         Initialize the Fred class that provides useful functions to query the Fred dataset. You need to specify a valid
         API key in one of 3 ways: pass the string via api_key, or set api_key_file to a file with the api key in the
-        first line, or set the environment variable 'FRED_API_KEY' to the value of your api key. You can sign up for a
+        first line, or set the environment variable `FRED_API_KEY` to the value of your api key. You can sign up for a
         free api key on the Fred website at http://research.stlouisfed.org/fred2/
         """
         self.api_key = None

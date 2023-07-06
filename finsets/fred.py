@@ -33,7 +33,7 @@ def get_series(series: str=None, # FRED series name
 def get_series_info(series: str=None, # FRED series name
                     api_key: str=None # FRED api key. If None, will use os.getenv("FRED_API_KEY")
                     ) -> pd.Series:
-    """Get metadata for given `series` from FRED"""
+    """Get metadata from FRED for given `series` from FRED"""
 
     if api_key is None: api_key = os.getenv("FRED_API_KEY")
     api = Fred(api_key=api_key)
@@ -44,7 +44,7 @@ def search(search_text: str=None, # What to search for
               nr_results: int=5, # How many results to output
               api_key: str=None # FRED api key. If None, will use os.getenv("FRED_API_KEY")
               ) -> pd.DataFrame:
-    """Get metadata for given `series` from FRED"""
+    """Search FRED for a given `search_text`, sort by popularity and return only the first `nr_results`"""
 
     if api_key is None: api_key = os.getenv("FRED_API_KEY")
     api = Fred(api_key=api_key)  
