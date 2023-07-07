@@ -5,7 +5,7 @@ __all__ = ['download']
 
 # %% ../nbs/wrds_utils.ipynb 2
 from typing import Sequence
-import os
+import os, glob 
 
 import pandas as pd
 import wrds 
