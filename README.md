@@ -17,7 +17,7 @@ pip install finsets
 
 ``` python
 import finsets as fds
-import wrds
+from finsets import wrds2 as wrds
 ```
 
 ## WRDS
@@ -29,18 +29,23 @@ with your WRDS credentials. To do that, run
 db = wrds.Connection()
 ```
 
-This will prompt you for your WRDS username and password.
-
-After you enter your credentials, if you don’t have a pgpass file
-already set up, it will ask you if you want to do that. Hit `y` and it
-will be automatically created for you. After this, you will never have
-to input your WRDS password.
+This will prompt you for your WRDS username and password. After you
+enter your credentials, if you don’t have a `pgpass` file already set
+up, it will ask you if you want to do that. Hit `y` and it will be
+automatically created for you. After this, you will never have to input
+your WRDS password.
 
 You will still have to supply your WRDS username to functions that
 retrieve data from WRDS (all of them have a `wrds_username` parameter).
-You you don’t want to supply the username either, save it under a
-`WRDS_USERNAME` environment variable. It will get fetched automatically
-with `os.getenv("WRDS_USERNAME")`.
+If you don’t want to be prompted for the username for every download,
+save it under a `WRDS_USERNAME` environment variable: - On Windows, in a
+Command Prompt: - `setx WRDS_USERNAME "your_wrds_username_here"` - On
+Linux, in a terminal: -
+`echo 'export WRDS_USERNAME="your_wrds_username_here"' >> ~/.bashrc && source ~/.bashrc` -
+On macOS, since macOS Catalina: -
+`echo 'export WRDS_USERNAME="your_wrds_username_here"' >> ~/.zshrc && source ~/.szhrc` -
+On macOS, prior to macOS Catalina: -
+`echo 'export WRDS_USERNAME="your_wrds_username_here"' >> ~/.bash_profile && source ~/.bash_profile`
 
 The functions in the `wrds_` modules will close database connections to
 WRDS automatically. However, if you open a connection manually, as above
