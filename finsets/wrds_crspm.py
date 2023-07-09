@@ -9,10 +9,10 @@ import os
 
 import pandas as pd
 import numpy as np
-import wrds
 
 import pandasmore as pdm
 from . import wrds_utils
+from . import wrds2 as wrds  
 
 # %% ../nbs/wrds_crspm.ipynb 4
 def default_raw_vars():
