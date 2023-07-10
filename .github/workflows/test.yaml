@@ -9,3 +9,4 @@ jobs:
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
           WRDS_USERNAME: ${{ secrets.WRDS_USERNAME }}
+          WRDS_PASS: ${{ secrets.WRDS_PASS }}

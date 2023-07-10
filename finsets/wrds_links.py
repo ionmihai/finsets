@@ -8,6 +8,7 @@ import pandas as pd
 
 import pandasmore as pdm
 from . import wrds_utils
+from . import wrds2 as wrds  
 
 # %% ../nbs/wrds_links.ipynb 6
 def gvkey_permno_m(wrds_username: str=None) -> pd.DataFrame:

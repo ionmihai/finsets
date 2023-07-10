@@ -12,6 +12,7 @@ import numpy as np
 
 import pandasmore as pdm
 from . import wrds_utils
+from . import wrds2 as wrds  
 
 # %% ../nbs/wrds_compa.ipynb 4
 def default_raw_vars():

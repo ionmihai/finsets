@@ -8,6 +8,8 @@ format:
     toc: true
     page-layout: full
     link-external-newwindow: true
+    grid:
+      sidebar-width: 400px
 
 website:
   twitter-card: true
