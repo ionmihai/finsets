@@ -23,11 +23,11 @@ website:
     contents:
       - auto: "/*.ipynb"
       - section: FRED
-        contents: fred/*
+        contents: 00_fred/*
       - section: WRDS
-        contents: wrds/*
+        contents: 01_wrds/*
       - section: Papers
-        contents: papers/*    
+        contents: 02_papers/*    
 
 
 metadata-files: [nbdev.yml, sidebar.yml]
