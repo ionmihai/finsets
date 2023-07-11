@@ -20,5 +20,14 @@ website:
     search: true
   sidebar:
     style: docked
+    contents:
+      - auto: "/*.ipynb"
+      - section: FRED
+        contents: fred/*
+      - section: WRDS
+        contents: wrds/*
+      - section: Papers
+        contents: papers/*    
+
 
 metadata-files: [nbdev.yml, sidebar.yml]
