@@ -70,7 +70,7 @@ def book_equity(df: pd.DataFrame=None, # If None, downloads (and cleans) only re
 
     reqs = ['at', 'lt', 'seq', 'ceq', 'txditc', 'pstk', 'pstkrv', 'pstkl', 'itcb']
     if list_reqs: return reqs
-    if df is None: df = clean(download_vars=reqs)
+    if df is None: df = clean(vars=reqs)
     df = df[reqs].copy()
 
     df['pstk'] = df['pstk'].fillna(0)

@@ -21,62 +21,32 @@ def default_raw_vars():
             'ret', 'retx', 'shrout', 'prc', 
             'shrcd', 'exchcd','siccd','ticker','cusip','ncusip']            
 
-# %% ../../nbs/01_wrds/01_crspm.ipynb 6
+# %% ../../nbs/01_wrds/01_crspm.ipynb 8
 def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; else `permno`, `permco`, `date`, and 'exchcd' are added by default
              wrds_username: str=None, #If None, looks for WRDS_USERNAME with `os.getenv`, then prompts you if needed
              start_date: str="01/01/1900", # Start date in MM/DD/YYYY format
-             end_date: str=None # End date in MM/DD/YYYY format; if None, defaults to current date             
+             end_date: str=None, # End date in MM/DD/YYYY format; if None, defaults to current date  
+             add_delist_adj_ret: bool=True, # Whether to calculate delisting-adjusted returns 
+             adj_ret_var: str='ret_adj' # What to call the returns adjusted for delisting bias
              ) -> pd.DataFrame:
     """Downloads `vars` from `start_date` to `end_date` from WRDS crsp.msf and crsp.msenames libraries. 
         Creates `ret_adj` for delisting based on Shumway and Warther (1999) and Johnson and Zhao (2007)"""
 
-#THIS SHOULD BE IN ITS OWN FUNCTION
-    if wrds_username is None:
-        wrds_username = os.getenv('WRDS_USERNAME')
-        if wrds_username is None: wrds_username = input("Enter your WRDS username: ") 
-
-    if vars is None: vars = default_raw_vars()
-    vars = ['permno','permco','date','exchcd'] + [x for x in vars if x not in ['permno','permco','date','exchcd']]
-
-    # Figure out which `vars` come from the `msf` table and which come from the `msenames` table and add a. and b. prefixes
-    db = wrds_api.Connection(wrds_username = wrds_username)
-    try:
-        all_msf_vars = list(db.describe_table('crsp','msf').name)
-        all_mse_vars = list(db.describe_table('crsp','msenames').name)
-        my_msf_vars = [f'a.{x}' for x in vars if x in all_msf_vars]
-        my_mse_vars = [f'b.{x}' for x in vars if (x in all_mse_vars) and (x not in all_msf_vars)]
-        varlist_string = ','.join(my_msf_vars + my_mse_vars)
-    except:
-        raise RuntimeError("Something went wrong with a WRDS database connection")
-    finally: db.close()
-##########################################
-
+    varlist_string = parse_varlist(vars, wrds_username)
     sql_string = f"""SELECT {varlist_string},  c.dlstcd, c.dlret 
                         FROM crsp.msf AS a 
                         LEFT JOIN crsp.msenames AS b
-                            ON a.permno=b.permno AND b.namedt<=a.date AND a.date<=b.nameendt
+                            ON a.permno=b.permno AND b.namedt<=a.date AND a.date<=b.nameendt                     
                         LEFT JOIN crsp.msedelist as c
-                            ON a.permno=c.permno AND date_trunc('month', a.date) = date_trunc('month', c.dlstdt)                        
+                            ON a.permno=c.permno AND date_trunc('month', a.date) = date_trunc('month', c.dlstdt)                            
                             WHERE a.date BETWEEN '{start_date}' AND COALESCE(%(end)s, CURRENT_DATE) 
                 """
-    
     df = wrds_api.download(sql_string, wrds_username=wrds_username, params={'end':end_date})
-
-########################## THIS SHOULD BE IN ITS OWN FUNCTION
-    #Adjust for delisting returns using Shumway and Warther (1999) and Johnson and Zhao (2007)
-    df['npdelist'] = (df['dlstcd']==500) | df['dlstcd'].between(520,584)
-    df['dlret'] = np.where(df.dlret.isna() & df.npdelist & df.exchcd.isin([1,2]), -0.35, df.dlret)
-    df['dlret'] = np.where(df.dlret.isna() & df.npdelist & df.exchcd.isin([3]), -0.55, df.dlret)
-    df['dlret'] = np.where(df.dlret.notna() & df.dlret < -1, -1, df.dlret)
-    df['dlret'] = df.dlret.fillna(0)
-
-    df['ret_adj'] = (1 + df.ret) * (1 + df.dlret) - 1
-    df['ret_adj'] = np.where(df.ret_adj.isna() & (df.dlret!=0), df.dlret, df.ret_adj)
-####################################################################
-
+    if add_delist_adj_ret: df = delist_adj_ret(df, adj_ret_var)
+    else: df = df.drop(['dlret','dlstcd'], axis=1)
     return df 
 
-# %% ../../nbs/01_wrds/01_crspm.ipynb 9
+# %% ../../nbs/01_wrds/01_crspm.ipynb 11
 def clean(df: pd.DataFrame=None, # If None, downloads `vars` using `download` function; else, must contain `permno` and `date` columns
           vars: List[str]=None, # If None, downloads `default_raw_vars`
           wrds_username: str=None, #If None, looks for WRDS_USERNAME with `os.getenv`, then prompts you if needed

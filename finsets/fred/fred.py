@@ -4,7 +4,7 @@
 __all__ = ['get_series', 'get_series_info', 'search', 'common_raw_vars']
 
 # %% ../../nbs/00_fred/00_fred.ipynb 4
-import os
+import os, time
 
 import pandas as pd
 from .fred_api import Fred
