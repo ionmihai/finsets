@@ -21,7 +21,8 @@ website:
   sidebar:
     style: docked
     contents:
-      - auto: "/*.ipynb"
+      - text: "Getting Started"
+        href: index.ipynb
       - section: FRED
         contents: 00_fred/*
       - section: WRDS
