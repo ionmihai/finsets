@@ -21,6 +21,7 @@ def get_series(series: str=None, # FRED series name
     if api_key is None: api_key = os.getenv("FRED_API_KEY")
     api = Fred(api_key=api_key)
     freq = api.get_series_info('GDP').frequency_short 
+    time.sleep(1)
     if label is None: label = str.lower(series)
     df = api.get_series(series).to_frame(name=label).reset_index().rename({'index':'date'},axis=1)
     df = pdm.setup_tseries(df, freq=freq).drop('date', axis=1)

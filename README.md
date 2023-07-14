@@ -26,7 +26,14 @@ from finsets import fred, wrds, papers
 
 ## WRDS
 
-Before you use any of the `wrds_` modules, you need to create a `pgpass`
+> Downloads and processes datasets from Wharton Research Data Services
+> [WRDS](https://wrds-www.wharton.upenn.edu/).
+
+Each WRDS module handles a different library in WRDS (e.g. `compa`
+module for the Compustat Annual CCM file, `crspm` for the CRSP Monthly
+Stock file, etc.).
+
+Before you use any of the `wrds` modules, you need to create a `pgpass`
 with your WRDS credentials. To do that, run
 
 ``` python
@@ -76,6 +83,9 @@ utilities that come with the `wrds` package.
 
 ## FRED
 
+> Downloads and processes datasets from the St. Louis
+> [FRED](https://fred.stlouisfed.org/).
+
 To use the functions in the `fred` module, you’ll need an API key from
 the St. Louis FRED.
 
@@ -84,3 +94,46 @@ store it in your environment variables under the name `FRED_API_KEY`
 
 Alternatively, you can supply the API key directly as the `api_key`
 parameter in each function in the `fred` module.
+
+``` python
+fred.get_series('GDP', label='Nominal GDP')
+```
+
+<div>
+
+|        | dtdate     | Nominal GDP |
+|--------|------------|-------------|
+| Qdate  |            |             |
+| 1946Q1 | 1946-01-01 | NaN         |
+| 1946Q2 | 1946-04-01 | NaN         |
+| 1946Q3 | 1946-07-01 | NaN         |
+| 1946Q4 | 1946-10-01 | NaN         |
+| 1947Q1 | 1947-01-01 | 243.164     |
+| ...    | ...        | ...         |
+| 2022Q1 | 2022-01-01 | 24740.480   |
+| 2022Q2 | 2022-04-01 | 25248.476   |
+| 2022Q3 | 2022-07-01 | 25723.941   |
+| 2022Q4 | 2022-10-01 | 26137.992   |
+| 2023Q1 | 2023-01-01 | 26529.774   |
+
+<p>309 rows × 2 columns</p>
+</div>
+
+## PAPERS
+
+> Downloads and processes datasets made available by the authors of
+> academic papers.
+
+Each `papers` module handles a different paper. The naming convention is
+that the module’s name is made up of the last names of the authors and
+the publication year, separated by underscores. If more than two
+authors, all but the first author’s name is replaced by ‘etal’. For
+example, the module for the paper “Firm-Level Political Risk:
+Measurement and Effects” (2019) by Tarek A. Hassan, Stephan Hollander,
+Laurence van Lent, Ahmed Tahoun is named `hasan_etal_2019`.
+
+``` python
+papers.hassan_etal_2019.variables()[:7]
+```
+
+    ['gvkey', 'date', 'date_earningscall', 'PRisk', 'NPRisk', 'Risk', 'PSentiment']
