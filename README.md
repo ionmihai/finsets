@@ -24,6 +24,10 @@ or
 from finsets import fred, wrds, papers
 ```
 
+Below, we very briefly describe each submodule. For more details, please
+see the documentation of each submodule (they provide a lot more
+functionality than presented here).
+
 ## WRDS
 
 > Downloads and processes datasets from Wharton Research Data Services
@@ -96,7 +100,7 @@ Alternatively, you can supply the API key directly as the `api_key`
 parameter in each function in the `fred` module.
 
 ``` python
-fred.get_series('GDP', label='Nominal GDP')
+fred.clean('GDP', label='Nominal GDP').tail()
 ```
 
 <div>
@@ -104,19 +108,12 @@ fred.get_series('GDP', label='Nominal GDP')
 |        | dtdate     | Nominal GDP |
 |--------|------------|-------------|
 | Qdate  |            |             |
-| 1946Q1 | 1946-01-01 | NaN         |
-| 1946Q2 | 1946-04-01 | NaN         |
-| 1946Q3 | 1946-07-01 | NaN         |
-| 1946Q4 | 1946-10-01 | NaN         |
-| 1947Q1 | 1947-01-01 | 243.164     |
-| ...    | ...        | ...         |
 | 2022Q1 | 2022-01-01 | 24740.480   |
 | 2022Q2 | 2022-04-01 | 25248.476   |
 | 2022Q3 | 2022-07-01 | 25723.941   |
 | 2022Q4 | 2022-10-01 | 26137.992   |
 | 2023Q1 | 2023-01-01 | 26529.774   |
 
-<p>309 rows × 2 columns</p>
 </div>
 
 ## PAPERS
