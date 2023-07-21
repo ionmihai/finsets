@@ -673,5 +673,4 @@ def download(sql_string: str=None,
 
     with Connection(wrds_username = wrds_username) as db:
         df = db.raw_sql(sql=sql_string, params=params)
-        db.close()
     return df

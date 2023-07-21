@@ -4,21 +4,24 @@
 from __future__ import annotations
 from pathlib import Path
 from typing import List
+import os
 
 import pandas as pd
 import numpy as np
 
 import pandasmore as pdm
 from . import wrds_api
+from .. import RESOURCES
 
 # %% auto 0
-__all__ = ['metadata', 'default_raw_vars', 'download', 'clean', 'book_equity', 'investment_vars', 'profitability_vars',
-           'cashflow_vars', 'liquidity_vars', 'leverage_vars', 'payout_vars', 'value_vars', 'issuance_vars']
+__all__ = ['variable_labels', 'metadata', 'default_raw_vars', 'download', 'clean', 'book_equity', 'investment_vars',
+           'profitability_vars', 'cashflow_vars', 'liquidity_vars', 'leverage_vars', 'payout_vars', 'value_vars',
+           'issuance_vars']
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 5
-def metadata(rawfile: str|Path='../../resources/compa_variable_descriptions.csv', # location of the raw metadata file
-             outfile: str|Path='../../metadata/compa_variable_labels_types.pkl', # where to save the cleaned metadata file 
+# %% ../../nbs/01_wrds/03_compa.ipynb 4
+def variable_labels(rawfile: str|Path=RESOURCES/'compa_variable_descriptions.csv', # location of the raw variable labels file
              ) -> pd.DataFrame:
+    "Loads raw variable labels file, cleans it and returns it as a pd.DataFrame"
 
     df = pd.read_csv(rawfile)
     df['Variable Label'] = df.apply(lambda row: row['Description'].replace(row['Variable Name'].strip()+' -- ', ''), axis=1)
@@ -26,12 +29,38 @@ def metadata(rawfile: str|Path='../../resources/compa_variable_descriptions.csv'
     df['Variable Name'] = df['Variable Name'].str.strip().str.lower()
     df = df[['Variable Name', 'Variable Label', 'Type']].copy()
     df.columns = ['name','label','type']
-    df.to_pickle(outfile)
     return df
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 7
+# %% ../../nbs/01_wrds/03_compa.ipynb 6
+def metadata(wrds_username: str=None
+             ) -> pd.DataFrame:
+    "Collects metadata from WRDS `comp.funda` table and merges it with `variable_labels`."
+
+    if wrds_username is None:
+        wrds_username = os.getenv('WRDS_USERNAME')
+        if wrds_username is None: wrds_username = input("Enter your WRDS username: ") 
+
+    with wrds_api.Connection(wrds_username = wrds_username) as db:
+        funda = db.describe_table('comp','funda')
+        nr_rows = db.get_row_count('comp','funda')
+        
+    meta = funda[['name','type']].copy()
+    meta['nr_rows'] = nr_rows
+    meta['wrds_library'] = 'comp'
+    meta['wrds_table'] = 'funda'
+
+    meta = meta.merge(variable_labels()[['name','label']], how='left', on='name')
+    
+    meta['output_of'] = 'wrds.compa.download()'
+    meta = pdm.order_columns(meta,these_first=['name','label','output_of'])
+    for v in list(meta.columns):
+        meta[v] = meta[v].astype('string')
+    
+    return meta
+
+# %% ../../nbs/01_wrds/03_compa.ipynb 8
 def default_raw_vars():
-    """Default variables used in `download` if none are specified. Takes about 2 min to download."""
+    """Default variables used in `download` if none are specified."""
 
     return ['datadate', 'gvkey', 'cusip' ,'cik' ,'tic' ,'fyear' ,'fyr' ,'naicsh', 'sich' ,'exchg',  
             'lt' ,'at' ,'txditc' ,'pstkl' ,'pstkrv' ,'pstk' ,'csho' ,'ajex' , 'rdip',
@@ -42,13 +71,13 @@ def default_raw_vars():
             'tstk' ,'wcap' ,'rect' ,'xsga' ,'aqc' ,'oibdp' ,'dpact' ,'fic' ,'ni' ,'ivao' ,'ivst' ,
             'dv' , 'intan' ,'pi' ,'txfo' ,'pifo' ,'xpp' ,'drc' ,'drlt' ,'ap' ,'xacc' ,'itcb']             
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 9
+# %% ../../nbs/01_wrds/03_compa.ipynb 10
 def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; else `permno`, `permco`, and `date` are added by default
              wrds_username: str=None, #If None, looks for WRDS_USERNAME with `os.getenv`, then prompts you if needed
              start_date: str="01/01/1900", # Start date in MM/DD/YYYY format
              end_date: str=None #End date in MM/DD/YYYY format; if None, defaults to current date
              ) -> pd.DataFrame:
-    """Downloads `vars` from `start_date` to `end_date` from WRDS comp.funda library and adds PERMNO and PERMCO as in CCM"""
+    """Downloads `vars` from `start_date` to `end_date` from WRDS `comp.funda` library and adds PERMNO and PERMCO as in CCM"""
 
     if vars is None: vars = default_raw_vars()
     vars = ','.join(['a.gvkey', 'a.datadate'] + 
@@ -64,7 +93,7 @@ def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; else
                 """
     return wrds_api.download(sql_string, wrds_username=wrds_username, params={'end':end_date})
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 12
+# %% ../../nbs/01_wrds/03_compa.ipynb 13
 def clean(df: pd.DataFrame=None, # If None, downloads `vars` using `download` function; else, must contain `permno` and `datadate` columns
           vars: List[str]=None, # If None, downloads `default_raw_vars`
           wrds_username: str=None, #If None, looks for WRDS_USERNAME with `os.getenv`, then prompts you if needed
@@ -78,7 +107,7 @@ def clean(df: pd.DataFrame=None, # If None, downloads `vars` using `download` fu
     df = pdm.setup_panel(df, panel_ids='permno', time_var='datadate', freq='Y', **clean_kwargs)
     return df 
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 15
+# %% ../../nbs/01_wrds/03_compa.ipynb 16
 def book_equity(df: pd.DataFrame=None, # If None, downloads (and cleans) only required vars
                 add_itcb=False,
                 list_reqs: bool=False # If true, just returns a list of the required variables
@@ -101,7 +130,7 @@ def book_equity(df: pd.DataFrame=None, # If None, downloads (and cleans) only re
     
     return df[['bookeq','shreq','pref_stock']].copy()
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 21
+# %% ../../nbs/01_wrds/03_compa.ipynb 22
 def investment_vars(df: pd.DataFrame=None, # If None, downloads (and cleans) only required vars 
                     list_reqs: bool=False # If true, just returns a list of the required variables
                     ) -> pd.DataFrame:
@@ -115,7 +144,7 @@ def investment_vars(df: pd.DataFrame=None, # If None, downloads (and cleans) onl
 
     return df[['ppentpch','capx2la']].copy()
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 24
+# %% ../../nbs/01_wrds/03_compa.ipynb 25
 def profitability_vars(df: pd.DataFrame, 
                     list_reqs: bool=False # If true, just returns a list of the required variables
                     ) -> pd.DataFrame:
@@ -128,7 +157,7 @@ def profitability_vars(df: pd.DataFrame,
 
     return df[['roa']].copy()
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 27
+# %% ../../nbs/01_wrds/03_compa.ipynb 28
 def cashflow_vars(df: pd.DataFrame, 
                     list_reqs: bool=False # If true, just returns a list of the required variables
                     ) -> pd.DataFrame:
@@ -143,7 +172,7 @@ def cashflow_vars(df: pd.DataFrame,
     
     return df[['cflow2la_is', 'cflow2la_cfs', 'cflow2la_full']].copy()
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 30
+# %% ../../nbs/01_wrds/03_compa.ipynb 31
 def liquidity_vars(df: pd.DataFrame, 
                     list_reqs: bool=False # If true, just returns a list of the required variables
                     ) -> pd.DataFrame:
@@ -156,7 +185,7 @@ def liquidity_vars(df: pd.DataFrame,
 
     return df[['cash2a']].copy()
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 33
+# %% ../../nbs/01_wrds/03_compa.ipynb 34
 def leverage_vars(df: pd.DataFrame, 
                     list_reqs: bool=False # If true, just returns a list of the required variables
                     ) -> pd.DataFrame:
@@ -171,7 +200,7 @@ def leverage_vars(df: pd.DataFrame,
         
     return df[['booklev']].copy()
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 36
+# %% ../../nbs/01_wrds/03_compa.ipynb 37
 def payout_vars(df: pd.DataFrame, 
                     list_reqs: bool=False # If true, just returns a list of the required variables
                     ) -> pd.DataFrame:
@@ -185,7 +214,7 @@ def payout_vars(df: pd.DataFrame,
 
     return df[['div2la','rep2la']].copy()
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 39
+# %% ../../nbs/01_wrds/03_compa.ipynb 40
 def value_vars(df: pd.DataFrame, 
                 list_reqs: bool=False # If true, just returns a list of the required variables
                 ) -> pd.DataFrame:
@@ -201,7 +230,7 @@ def value_vars(df: pd.DataFrame,
 
     return  df[['tobinq']].copy()
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 42
+# %% ../../nbs/01_wrds/03_compa.ipynb 43
 def issuance_vars(df: pd.DataFrame, 
                 list_reqs: bool=False # If true, just returns a list of the required variables
                 ) -> pd.DataFrame:
