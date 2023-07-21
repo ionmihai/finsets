@@ -126,6 +126,7 @@ fred.clean('GDP', label='Nominal GDP').tail()
 
 <div>
 
+
 |        | dtdate     | Nominal GDP |
 |--------|------------|-------------|
 | Qdate  |            |             |

@@ -672,4 +672,6 @@ def download(sql_string: str=None,
         if wrds_username is None: wrds_username = input("Enter your WRDS username: ") 
 
     with Connection(wrds_username = wrds_username) as db:
-        return db.raw_sql(sql=sql_string, params=params)
+        df = db.raw_sql(sql=sql_string, params=params)
+        db.close()
+    return df

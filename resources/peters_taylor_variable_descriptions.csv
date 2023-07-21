@@ -1,0 +1,9 @@
+Variable Name,Type,Description
+gvkey,string,GVKEY (gvkey)
+datadate,date,Date (datadate)
+fyear,double,Fiscal Year (fyear)
+K_int_Know,double,Firm’s knowledge capital replacement cost (K_int_Know)
+K_int_Org,double,Firm’s organization capital replacement cost (K_int_Org)
+K_int_offBS,double,Portion of K_int that doesn't appear on firm’s balance sheet (K_int_offBS)
+K_int,double,Firm’s intangible capital estimated replacement cost (K_int)
+q_tot,double,Total q (q_tot)
