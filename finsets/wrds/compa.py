@@ -110,11 +110,16 @@ def clean(df: pd.DataFrame=None, # If None, downloads `vars` using `download` fu
 # %% ../../nbs/01_wrds/03_compa.ipynb 16
 def book_equity(df: pd.DataFrame=None, # If None, downloads (and cleans) only required vars
                 add_itcb=False,
-                list_reqs: bool=False # If true, just returns a list of the required variables
+                return_metadata: bool=False # If true, just returns a list of the required variables
                 ) -> pd.DataFrame:
 
-    reqs = ['at', 'lt', 'seq', 'ceq', 'txditc', 'pstk', 'pstkrv', 'pstkl', 'itcb']
-    if list_reqs: return reqs
+    metadata = {'inputs': {'wrds.compa.clean()': ['at', 'lt', 'seq', 'ceq', 'txditc', 'pstk', 'pstkrv', 'pstkl', 'itcb']},
+                'outputs': {'wrds.compa.book_equity()': ['bookeq','shreq','pref_stock']},
+                'labels': {'bookeq': 'Book equity', 'shreq': 'Shareholder equity', 'pref_stock': 'Preferred stock'}
+    }      
+    if return_metadata: return metadata
+
+    reqs = metadata['inputs']['wrds.compa.clean()']
     if df is None: df = clean(vars=reqs)
     df = df[reqs].copy()
 
@@ -128,7 +133,7 @@ def book_equity(df: pd.DataFrame=None, # If None, downloads (and cleans) only re
     df['bookeq'] = df['shreq'] + df['txditc'].fillna(0) - df['pref_stock']
     if add_itcb: df['bookeq'] = df['bookeq'] + df['itcb'].fillna(0)
     
-    return df[['bookeq','shreq','pref_stock']].copy()
+    return df[metadata['outputs']['wrds.compa.book_equity()']].copy()
 
 # %% ../../nbs/01_wrds/03_compa.ipynb 22
 def investment_vars(df: pd.DataFrame=None, # If None, downloads (and cleans) only required vars 
