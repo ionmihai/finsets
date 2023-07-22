@@ -3,14 +3,12 @@
 # %% auto 0
 __all__ = ['features_metadata', 'raw_metadata', 'all_metadata']
 
-# %% ../nbs/00_core.ipynb 3
+# %% ../nbs/00_core.ipynb 4
 from importlib import import_module
 from inspect import signature
 import pandas as pd
 
-from . import wrds
-
-# %% ../nbs/00_core.ipynb 4
+# %% ../nbs/00_core.ipynb 5
 def features_metadata(submodules: list=['wrds', 'papers'] # list of submodules to collect metadata from
                       ) -> pd.DataFrame:
     "Go through `submodules` of `finsets` and collect metadata from all functions that have `return_metadata` parameter"
@@ -40,7 +38,7 @@ def features_metadata(submodules: list=['wrds', 'papers'] # list of submodules t
                                 df = pd.concat([df,new_meta],ignore_index=True)
     return df
 
-# %% ../nbs/00_core.ipynb 6
+# %% ../nbs/00_core.ipynb 7
 def raw_metadata(submodules=['wrds', 'papers'] # list of submodules to collect metadata from
                 ) -> pd.DataFrame:
     "Go through `submodules` of `finsets` and collect metadata from `raw_metadata` functions (if present)"
@@ -55,7 +53,7 @@ def raw_metadata(submodules=['wrds', 'papers'] # list of submodules to collect m
                 df = pd.concat([df,submodule.raw_metadata()],ignore_index=True)
     return df
 
-# %% ../nbs/00_core.ipynb 8
+# %% ../nbs/00_core.ipynb 9
 def all_metadata(submodules=['wrds', 'papers'] # list of submodules to collect metadata from
                 ) -> pd.DataFrame:
     "Collects `raw_metadata` and `features_metadata` from `submodules` of `finsets`"
