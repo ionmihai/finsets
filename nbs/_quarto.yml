@@ -22,9 +22,9 @@ website:
     style: docked
     contents:
       - text: "Getting Started"
-        index.ipynb
+        href: index.ipynb
       - text: "Core functions"
-        00_core.ipynb
+        href: 00_core.ipynb
       - section: FRED
         contents: 00_fred/*
       - section: WRDS
