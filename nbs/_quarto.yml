@@ -23,7 +23,8 @@ website:
     contents:
       - text: "Getting Started"
         index.ipynb
-      - 00_core.ipynb
+      - text: "Core functions"
+        00_core.ipynb
       - section: FRED
         contents: 00_fred/*
       - section: WRDS
