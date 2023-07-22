@@ -50,7 +50,7 @@ def metadata(wrds_username: str=None
 
     meta = meta.merge(variable_labels()[['name','label']], how='left', on='name')
     
-    meta['output_of'] = 'wrds.compa.download()'
+    meta['output_of'] = 'wrds.compa.download'
     meta = pdm.order_columns(meta,these_first=['name','label','output_of'])
     for v in list(meta.columns):
         meta[v] = meta[v].astype('string')
@@ -112,13 +112,13 @@ def book_equity(df: pd.DataFrame=None, # If None, downloads (and cleans) only re
                 return_metadata: bool=False # If true, just returns metadata dictionary
                 ) -> pd.DataFrame:
 
-    metadata = {'inputs': {'wrds.compa.clean()': ['at', 'lt', 'seq', 'ceq', 'txditc', 'pstk', 'pstkrv', 'pstkl', 'itcb']},
-                'outputs': {'wrds.compa.book_equity()': ['bookeq','shreq','pref_stock']},
+    metadata = {'inputs': {'wrds.compa.clean': ['at', 'lt', 'seq', 'ceq', 'txditc', 'pstk', 'pstkrv', 'pstkl', 'itcb']},
+                'outputs': ['bookeq','shreq','pref_stock'],
                 'labels': {'bookeq': 'Book equity', 'shreq': 'Shareholder equity', 'pref_stock': 'Preferred stock'}
     }      
     if return_metadata: return metadata
 
-    reqs = metadata['inputs']['wrds.compa.clean()']
+    reqs = metadata['inputs']['wrds.compa.clean']
     if df is None: df = clean(vars=reqs)
     df = df[reqs].copy()
 
@@ -132,20 +132,20 @@ def book_equity(df: pd.DataFrame=None, # If None, downloads (and cleans) only re
     df['bookeq'] = df['shreq'] + df['txditc'].fillna(0) - df['pref_stock']
     if add_itcb: df['bookeq'] = df['bookeq'] + df['itcb'].fillna(0)
     
-    return df[metadata['outputs']['wrds.compa.book_equity()']].copy()
+    return df[metadata['outputs']].copy()
 
 # %% ../../nbs/01_wrds/03_compa.ipynb 23
 def tobin_q(df: pd.DataFrame=None,      # If None, downloads (and cleans) only required vars
             return_metadata: bool=False # If True, just returns the metadata dictionary
             ) -> pd.DataFrame:
 
-    metadata = {'inputs': {'wrds.compa.clean()': ['at', 'lt', 'seq', 'ceq', 'txditc', 'pstk', 'pstkrv', 'pstkl', 'itcb','prcc_f','csho']},
-                'outputs': {'wrds.compa.tobin_q()': ['tobinq']},
+    metadata = {'inputs': {'wrds.compa.clean': ['at', 'lt', 'seq', 'ceq', 'txditc', 'pstk', 'pstkrv', 'pstkl', 'itcb','prcc_f','csho']},
+                'outputs':  ['tobinq'],
                 'labels': {'tobinq': 'Tobin Q'}
     }      
     if return_metadata: return metadata
 
-    reqs = metadata['inputs']['wrds.compa.clean()']
+    reqs = metadata['inputs']['wrds.compa.clean']
     if df is None: df = clean(vars=reqs)
     df = df[reqs].copy()
 
@@ -154,22 +154,22 @@ def tobin_q(df: pd.DataFrame=None,      # If None, downloads (and cleans) only r
 
     df['tobinq'] = (df['at'] - df['bookeq'] + df['prcc_f'] * df['csho']) / df['at']
     df = df.replace([np.inf, -np.inf], np.nan)
-    return  df[metadata['outputs']['wrds.compa.tobin_q()']].copy()
+    return  df[metadata['outputs']].copy()
 
 # %% ../../nbs/01_wrds/03_compa.ipynb 28
 def issuance_vars(df: pd.DataFrame=None,        # If None, downloads (and cleans) only required vars
                     return_metadata: bool=False # If True, just returns the metadata dictionary
                     ) -> pd.DataFrame:
 
-    metadata = {'inputs': {'wrds.compa.clean()': ['at', 'lt', 'seq', 'ceq', 'txditc', 'pstk', 'pstkrv', 'pstkl', 'itcb',
+    metadata = {'inputs': {'wrds.compa.clean': ['at', 'lt', 'seq', 'ceq', 'txditc', 'pstk', 'pstkrv', 'pstkl', 'itcb',
                                                   'sstk','prstkc','dltis','dltr', 're', 'dlc','dltt']},
-                'outputs': {'wrds.compa.issuance_vars()': ['equityiss_tot','equityiss_cfs', 'debtiss_tot', 'debtiss_cfs', 'debtiss_bs']},
+                'outputs': ['equityiss_tot','equityiss_cfs', 'debtiss_tot', 'debtiss_cfs', 'debtiss_bs'],
                 'labels': {'equityiss_tot':'Equity issuance','equityiss_cfs':'Equity issuance', 
                            'debtiss_tot':'Debt issuance', 'debtiss_cfs':'Debt issuance', 'debtiss_bs':'Debt issuance'}
     }      
     if return_metadata: return metadata
 
-    reqs = metadata['inputs']['wrds.compa.clean()']
+    reqs = metadata['inputs']['wrds.compa.clean']
     if df is None: df = clean(vars=reqs)
     df = df[reqs].copy()
 
@@ -187,61 +187,61 @@ def issuance_vars(df: pd.DataFrame=None,        # If None, downloads (and cleans
     df['debtiss_tot'] = (pdm.rdiff(df['at']) - pdm.rdiff(df['bookeq'])) / df['lag_at']
     
     df = df.replace([np.inf, -np.inf], np.nan)
-    return df[metadata['outputs']['wrds.compa.issuance_vars()']].copy()
+    return df[metadata['outputs']].copy()
 
 # %% ../../nbs/01_wrds/03_compa.ipynb 31
 def investment_vars(df: pd.DataFrame=None,      # If None, downloads (and cleans) only required vars
                     return_metadata: bool=False # If True, just returns the metadata dictionary
                     ) -> pd.DataFrame:
 
-    metadata = {'inputs': {'wrds.compa.clean()': ['ppent','capx','at']},
-                'outputs': {'wrds.compa.investment_vars()': ['ppentpch','capx2la']},
+    metadata = {'inputs': {'wrds.compa.clean': ['ppent','capx','at']},
+                'outputs': ['ppentpch','capx2la'],
                 'labels': {'ppentpch':'Pct change in net PPE','capx2la': 'CAPX to lagged assets'}
     }      
     if return_metadata: return metadata
 
-    reqs = metadata['inputs']['wrds.compa.clean()']
+    reqs = metadata['inputs']['wrds.compa.clean']
     if df is None: df = clean(vars=reqs)
     df = df[reqs].copy()
     
     df['ppentpch'] = pdm.rpct_change(df['ppent'])
     df['capx2la'] = df['capx'] / pdm.lag(df['at'])
     df = df.replace([np.inf, -np.inf], np.nan)
-    return df[metadata['outputs']['wrds.compa.investment_vars()']].copy()
+    return df[metadata['outputs']].copy()
 
 # %% ../../nbs/01_wrds/03_compa.ipynb 34
 def profitability_vars(df: pd.DataFrame=None,      # If None, downloads (and cleans) only required vars
                         return_metadata: bool=False # If True, just returns the metadata dictionary
                         ) -> pd.DataFrame:
 
-    metadata = {'inputs': {'wrds.compa.clean()': ['ib','at']},
-                'outputs': {'wrds.compa.profitability_vars()': ['roa']},
+    metadata = {'inputs': {'wrds.compa.clean': ['ib','at']},
+                'outputs': ['roa'],
                 'labels': {'roa':'Return on assets'}
     }      
     if return_metadata: return metadata
 
-    reqs = metadata['inputs']['wrds.compa.clean()']
+    reqs = metadata['inputs']['wrds.compa.clean']
     if df is None: df = clean(vars=reqs)
     df = df[reqs].copy()
 
     df['roa'] = df['ib'] / df['at']
     df = df.replace([np.inf, -np.inf], np.nan)
-    return df[metadata['outputs']['wrds.compa.profitability_vars()']].copy()
+    return df[metadata['outputs']].copy()
 
 # %% ../../nbs/01_wrds/03_compa.ipynb 37
 def cashflow_vars(df: pd.DataFrame=None,      # If None, downloads (and cleans) only required vars
                         return_metadata: bool=False # If True, just returns the metadata dictionary
                         ) -> pd.DataFrame:
 
-    metadata = {'inputs': {'wrds.compa.clean()': ['dtdate','oancf','ib','dp','at']},
-                'outputs': {'wrds.compa.cashflow_vars()': ['cflow2la_is', 'cflow2la_cfs', 'cflow2la_full']},
+    metadata = {'inputs': {'wrds.compa.clean': ['dtdate','oancf','ib','dp','at']},
+                'outputs': ['cflow2la_is', 'cflow2la_cfs', 'cflow2la_full'],
                 'labels': {'cflow2la_is':'Operating cash flows to lagged assets', 
                            'cflow2la_cfs':'Operating cash flows to lagged assets', 
                            'cflow2la_full':'Operating cash flows to lagged assets'}
     }      
     if return_metadata: return metadata
 
-    reqs = metadata['inputs']['wrds.compa.clean()']
+    reqs = metadata['inputs']['wrds.compa.clean']
     if df is None: df = clean(vars=reqs)
     df = df[reqs].copy()
     
@@ -250,40 +250,40 @@ def cashflow_vars(df: pd.DataFrame=None,      # If None, downloads (and cleans) 
     df['cflow2la_full'] = np.where(df.dtdate.dt.year<1987, df['cflow2la_is'], df['cflow2la_cfs'])
 
     df = df.replace([np.inf, -np.inf], np.nan)    
-    return df[metadata['outputs']['wrds.compa.cashflow_vars()']].copy()
+    return df[metadata['outputs']].copy()
 
 # %% ../../nbs/01_wrds/03_compa.ipynb 40
 def liquidity_vars(df: pd.DataFrame=None,      # If None, downloads (and cleans) only required vars
                         return_metadata: bool=False # If True, just returns the metadata dictionary
                         ) -> pd.DataFrame:
 
-    metadata = {'inputs': {'wrds.compa.clean()': ['che','at']},
-                'outputs': {'wrds.compa.liquidity_vars()': ['cash2a']},
+    metadata = {'inputs': {'wrds.compa.clean': ['che','at']},
+                'outputs': ['cash2a'],
                 'labels': {'cash2a':'Cash holdings to assets'}
     }      
     if return_metadata: return metadata
 
-    reqs = metadata['inputs']['wrds.compa.clean()']
+    reqs = metadata['inputs']['wrds.compa.clean']
     if df is None: df = clean(vars=reqs)
     df = df[reqs].copy()
 
     df['cash2a'] = df['che'] / df['at']
 
     df = df.replace([np.inf, -np.inf], np.nan) 
-    return df[metadata['outputs']['wrds.compa.liquidity_vars()']].copy()
+    return df[metadata['outputs']].copy()
 
 # %% ../../nbs/01_wrds/03_compa.ipynb 43
 def leverage_vars(df: pd.DataFrame=None,      # If None, downloads (and cleans) only required vars
                         return_metadata: bool=False # If True, just returns the metadata dictionary
                         ) -> pd.DataFrame:
 
-    metadata = {'inputs': {'wrds.compa.clean()': ['dltt','dlc','at']},
-                'outputs': {'wrds.compa.leverage_vars()': ['booklev']},
+    metadata = {'inputs': {'wrds.compa.clean': ['dltt','dlc','at']},
+                'outputs': ['booklev'],
                 'labels': {'booklev':'Book leverage'}
     }      
     if return_metadata: return metadata
 
-    reqs = metadata['inputs']['wrds.compa.clean()']
+    reqs = metadata['inputs']['wrds.compa.clean']
     if df is None: df = clean(vars=reqs)
     df = df[reqs].copy()
 
@@ -292,21 +292,21 @@ def leverage_vars(df: pd.DataFrame=None,      # If None, downloads (and cleans) 
     df.loc[df.booklev>1, 'booklev'] = 1
     
     df = df.replace([np.inf, -np.inf], np.nan)         
-    return df[metadata['outputs']['wrds.compa.leverage_vars()']].copy()
+    return df[metadata['outputs']].copy()
 
 # %% ../../nbs/01_wrds/03_compa.ipynb 46
 def payout_vars(df: pd.DataFrame=None,      # If None, downloads (and cleans) only required vars
                         return_metadata: bool=False # If True, just returns the metadata dictionary
                         ) -> pd.DataFrame:
 
-    metadata = {'inputs': {'wrds.compa.clean()': ['dvc','prstkc','at']},
-                'outputs': {'wrds.compa.payout_vars()': ['div2la','rep2la']},
+    metadata = {'inputs': {'wrds.compa.clean': ['dvc','prstkc','at']},
+                'outputs': ['div2la','rep2la'],
                 'labels': {'div2la': 'Dividends to lagged assets',
                            'rep2la': 'Repurchases to lagged assets'}
     }      
     if return_metadata: return metadata
 
-    reqs = metadata['inputs']['wrds.compa.clean()']
+    reqs = metadata['inputs']['wrds.compa.clean']
     if df is None: df = clean(vars=reqs)
     df = df[reqs].copy()
 
@@ -314,4 +314,4 @@ def payout_vars(df: pd.DataFrame=None,      # If None, downloads (and cleans) on
     df['rep2la'] = df['prstkc'].fillna(0) / pdm.lag(df['at'])
 
     df = df.replace([np.inf, -np.inf], np.nan) 
-    return df[metadata['outputs']['wrds.compa.payout_vars()']].copy()
+    return df[metadata['outputs']].copy()
