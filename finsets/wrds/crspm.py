@@ -14,23 +14,25 @@ from . import wrds_api
 from .. import RESOURCES
 
 # %% auto 0
-__all__ = ['variable_labels', 'metadata', 'default_raw_vars', 'parse_varlist', 'delist_adj_ret', 'download', 'clean']
+__all__ = ['raw_metadata', 'raw_metadata_extra', 'default_raw_vars', 'parse_varlist', 'delist_adj_ret', 'download', 'clean']
 
 # %% ../../nbs/01_wrds/01_crspm.ipynb 4
-def variable_labels(rawfile: str|Path=RESOURCES/'crspm_variable_descriptions.csv', # location of the raw variable labels file
+def raw_metadata(rawfile: str|Path=RESOURCES/'crspm_variable_descriptions.csv', # location of the raw variable labels file
              ) -> pd.DataFrame:
     "Loads raw variable labels file, cleans it and returns it as a pd.DataFrame"
 
     df = pd.read_csv(rawfile)
+    df['output_of'] = 'wrds.crspm.clean'
+
     df['Variable Label'] = df.apply(lambda row: row['Description'].replace(row['Variable Name'].strip()+' -- ', ''), axis=1)
     df['Variable Label'] = df.apply(lambda row: row['Variable Label'].replace( '(' + row['Variable Name'].strip() + ')', ''), axis=1)
     df['Variable Name'] = df['Variable Name'].str.strip().str.lower()
-    df = df[['Variable Name', 'Variable Label', 'Type']].copy()
-    df.columns = ['name','label','type']
+    df = df[['Variable Name', 'Variable Label','output_of', 'Type']].copy()
+    df.columns = ['name','label','output_of','type']
     return df
 
-# %% ../../nbs/01_wrds/01_crspm.ipynb 6
-def metadata(wrds_username: str=None
+# %% ../../nbs/01_wrds/01_crspm.ipynb 7
+def raw_metadata_extra(wrds_username: str=None
              ) -> pd.DataFrame:
     "Collects metadata from WRDS `crsp.msf` and `crsp.msenames` tables and merges it with `variable_labels`."
 
@@ -55,7 +57,7 @@ def metadata(wrds_username: str=None
     mse_meta['wrds_table'] = 'msenames'
 
     crsp_meta = (pd.concat([msf_meta, mse_meta],axis=0, ignore_index=True)
-                .merge(variable_labels()[['name','label']], how='left', on='name'))
+                .merge(raw_metadata()[['name','label']], how='left', on='name'))
     
     crsp_meta['output_of'] = 'wrds.crspm.download()'
     crsp_meta = pdm.order_columns(crsp_meta,these_first=['name','label','output_of'])
@@ -64,7 +66,7 @@ def metadata(wrds_username: str=None
     
     return crsp_meta
 
-# %% ../../nbs/01_wrds/01_crspm.ipynb 8
+# %% ../../nbs/01_wrds/01_crspm.ipynb 9
 def default_raw_vars():
     """Default variables used in `download` if none are specified. Takes about 2 min to download."""
     
@@ -72,7 +74,7 @@ def default_raw_vars():
             'ret', 'retx', 'shrout', 'prc', 
             'shrcd', 'exchcd','siccd','ticker','cusip','ncusip']            
 
-# %% ../../nbs/01_wrds/01_crspm.ipynb 10
+# %% ../../nbs/01_wrds/01_crspm.ipynb 11
 def parse_varlist(vars: List[str]=None,
                   wrds_username: str=None
                   ) -> str:
@@ -93,7 +95,7 @@ def parse_varlist(vars: List[str]=None,
         varlist_string = ','.join(my_msf_vars + my_mse_vars)
     return varlist_string
 
-# %% ../../nbs/01_wrds/01_crspm.ipynb 11
+# %% ../../nbs/01_wrds/01_crspm.ipynb 12
 def delist_adj_ret(df: pd.DataFrame, # Requires `ret`,`exchcd`, ` `dlret`, and `dlstcd` variables
                        adj_ret_var: str
                        ) -> pd.DataFrame:
@@ -110,7 +112,7 @@ def delist_adj_ret(df: pd.DataFrame, # Requires `ret`,`exchcd`, ` `dlret`, and `
     df = df.drop('npdelist', axis=1) 
     return df
 
-# %% ../../nbs/01_wrds/01_crspm.ipynb 12
+# %% ../../nbs/01_wrds/01_crspm.ipynb 13
 def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; `permno`, `permco`, `date`, and 'exchcd' are added by default
              wrds_username: str=None,       #If None, looks for WRDS_USERNAME with `os.getenv`, then prompts you if needed
              start_date: str="01/01/1900",  # Start date in MM/DD/YYYY format
@@ -135,7 +137,7 @@ def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; `per
     else: df = df.drop(['dlret','dlstcd'], axis=1)
     return df 
 
-# %% ../../nbs/01_wrds/01_crspm.ipynb 15
+# %% ../../nbs/01_wrds/01_crspm.ipynb 16
 def clean(df: pd.DataFrame=None,        # If None, downloads `vars` using `download` function; else, must contain `permno` and `date` columns
           vars: List[str]=None,         # If None, downloads `default_raw_vars`
           wrds_username: str=None,      # If None, looks for WRDS_USERNAME with `os.getenv`, then prompts you if needed
