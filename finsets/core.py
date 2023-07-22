@@ -41,7 +41,7 @@ def features_metadata(submodules: list=['wrds', 'papers'] # list of submodules t
     return df
 
 # %% ../nbs/00_core.ipynb 6
-def raw_metadata(submodules=['wrds', 'papers']
+def raw_metadata(submodules=['wrds', 'papers'] # list of submodules to collect metadata from
                 ) -> pd.DataFrame:
     "Go through `submodules` of `finsets` and collect metadata from `raw_metadata` functions (if present)"
 
@@ -56,7 +56,7 @@ def raw_metadata(submodules=['wrds', 'papers']
     return df
 
 # %% ../nbs/00_core.ipynb 8
-def all_metadata(submodules=['wrds', 'papers']
+def all_metadata(submodules=['wrds', 'papers'] # list of submodules to collect metadata from
                 ) -> pd.DataFrame:
     "Collects `raw_metadata` and `features_metadata` from `submodules` of `finsets`"
 

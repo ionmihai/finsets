@@ -22,7 +22,8 @@ website:
     style: docked
     contents:
       - text: "Getting Started"
-        href: index.ipynb
+        index.ipynb
+      - 00_core.ipynb
       - section: FRED
         contents: 00_fred/*
       - section: WRDS
