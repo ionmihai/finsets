@@ -69,8 +69,8 @@ def all_metadata(submodules=['wrds', 'papers'] # list of submodules to collect m
 # %% ../nbs/00_core.ipynb 11
 @call_parse
 def search(query: str,              # What to search for 
-           which_meta: str='all',   #"all", "features", or "raw"; specifies the function that fetches the metadata you want to search through
-           meta_field: str='label', # Which column in the metadata table you want to search through. Use "name" to search variable names.  
+           meta: str='all',   #"all", "features", or "raw"; specifies the function that fetches the metadata you want to search through
+           field: str='label', # Which column in the metadata table you want to search through. Use "name" to search variable names.  
            limit: int=10,           # How many results to display                      
            ) -> pd.DataFrame:
     "Search for `query` in metadata returned by f`{meta_func}_metadata`; return `limit` number of results"
@@ -80,8 +80,8 @@ def search(query: str,              # What to search for
 
     try:   
         import finsets
-        metadata = getattr(finsets, f'{which_meta}_metadata')()
-        results = process.extractBests(query, metadata[meta_field], 
+        metadata = getattr(finsets, f'{meta}_metadata')()
+        results = process.extractBests(query, metadata[field], 
                                         scorer = fuzz.token_sort_ratio,
                                         limit=limit)
         rows = [x[2] for x in results]
