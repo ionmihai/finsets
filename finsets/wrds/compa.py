@@ -238,9 +238,9 @@ def cashflow_vars(df: pd.DataFrame=None,      # If None, downloads (and cleans) 
 
     metadata = {'inputs': {'wrds.compa.clean': ['dtdate','oancf','ib','dp','at']},
                 'outputs': ['cflow2la_is', 'cflow2la_cfs', 'cflow2la_full'],
-                'labels': {'cflow2la_is':'Operating cash flows to lagged assets', 
-                           'cflow2la_cfs':'Operating cash flows to lagged assets', 
-                           'cflow2la_full':'Operating cash flows to lagged assets'}
+                'labels': {'cflow2la_is':'Cash flows to lagged assets', 
+                           'cflow2la_cfs':'Cash flows to lagged assets', 
+                           'cflow2la_full':'Cash flows to lagged assets'}
     }      
     if return_metadata: return metadata
 
