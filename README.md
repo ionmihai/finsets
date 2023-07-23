@@ -87,6 +87,28 @@ fds.features_metadata()
 
 </div>
 
+``` python
+fds.search('total assets')
+```
+
+<div>
+
+
+|     | name          | label                                     | output_of                  | inputs                | inputs_generated_by | type   |
+|-----|---------------|-------------------------------------------|----------------------------|-----------------------|---------------------|--------|
+| 110 | at            | Assets - Total                            | wrds.compa.clean           | NaN                   | NaN                 | double |
+| 10  | capx2la       | CAPX to lagged assets                     | wrds.compa.investment_vars | ppent,capx,at         | wrds.compa.clean    | NaN    |
+| 12  | cflow2la_is   | Operating cash flows to lagged assets     | wrds.compa.cashflow_vars   | dtdate,oancf,ib,dp,at | wrds.compa.clean    | NaN    |
+| 13  | cflow2la_cfs  | Operating cash flows to lagged assets     | wrds.compa.cashflow_vars   | dtdate,oancf,ib,dp,at | wrds.compa.clean    | NaN    |
+| 14  | cflow2la_full | Operating cash flows to lagged assets     | wrds.compa.cashflow_vars   | dtdate,oancf,ib,dp,at | wrds.compa.clean    | NaN    |
+| 15  | cash2a        | Cash holdings to assets                   | wrds.compa.liquidity_vars  | che,at                | wrds.compa.clean    | NaN    |
+| 17  | div2la        | Dividends to lagged assets                | wrds.compa.payout_vars     | dvc,prstkc,at         | wrds.compa.clean    | NaN    |
+| 18  | rep2la        | Repurchases to lagged assets              | wrds.compa.payout_vars     | dvc,prstkc,at         | wrds.compa.clean    | NaN    |
+| 87  | acdo          | Current Assets of Discontinued Operations | wrds.compa.clean           | NaN                   | NaN                 | double |
+| 88  | aco           | Current Assets Other Total                | wrds.compa.clean           | NaN                   | NaN                 | double |
+
+</div>
+
 ## WRDS
 
 > Downloads and processes datasets from Wharton Research Data Services
