@@ -57,55 +57,36 @@ The functions in this model are available directly in the `finsets`
 namespace. For example:
 
 ``` python
-fds.features_metadata()
+fds.features_metadata().head()
 ```
 
 <div>
 
 
-|     | name          | label                                 | output_of                     | inputs                                            | inputs_generated_by |
-|-----|---------------|---------------------------------------|-------------------------------|---------------------------------------------------|---------------------|
-| 0   | bookeq        | Book equity                           | wrds.compa.book_equity        | at,lt,seq,ceq,txditc,pstk,pstkrv,pstkl,itcb       | wrds.compa.clean    |
-| 1   | shreq         | Shareholder equity                    | wrds.compa.book_equity        | at,lt,seq,ceq,txditc,pstk,pstkrv,pstkl,itcb       | wrds.compa.clean    |
-| 2   | pref_stock    | Preferred stock                       | wrds.compa.book_equity        | at,lt,seq,ceq,txditc,pstk,pstkrv,pstkl,itcb       | wrds.compa.clean    |
-| 3   | tobinq        | Tobin Q                               | wrds.compa.tobin_q            | at,lt,seq,ceq,txditc,pstk,pstkrv,pstkl,itcb,pr... | wrds.compa.clean    |
-| 4   | equityiss_tot | Equity issuance                       | wrds.compa.issuance_vars      | at,lt,seq,ceq,txditc,pstk,pstkrv,pstkl,itcb,ss... | wrds.compa.clean    |
-| 5   | equityiss_cfs | Equity issuance                       | wrds.compa.issuance_vars      | at,lt,seq,ceq,txditc,pstk,pstkrv,pstkl,itcb,ss... | wrds.compa.clean    |
-| 6   | debtiss_tot   | Debt issuance                         | wrds.compa.issuance_vars      | at,lt,seq,ceq,txditc,pstk,pstkrv,pstkl,itcb,ss... | wrds.compa.clean    |
-| 7   | debtiss_cfs   | Debt issuance                         | wrds.compa.issuance_vars      | at,lt,seq,ceq,txditc,pstk,pstkrv,pstkl,itcb,ss... | wrds.compa.clean    |
-| 8   | debtiss_bs    | Debt issuance                         | wrds.compa.issuance_vars      | at,lt,seq,ceq,txditc,pstk,pstkrv,pstkl,itcb,ss... | wrds.compa.clean    |
-| 9   | ppentpch      | Pct change in net PPE                 | wrds.compa.investment_vars    | ppent,capx,at                                     | wrds.compa.clean    |
-| 10  | capx2la       | CAPX to lagged assets                 | wrds.compa.investment_vars    | ppent,capx,at                                     | wrds.compa.clean    |
-| 11  | roa           | Return on assets                      | wrds.compa.profitability_vars | ib,at                                             | wrds.compa.clean    |
-| 12  | cflow2la_is   | Operating cash flows to lagged assets | wrds.compa.cashflow_vars      | dtdate,oancf,ib,dp,at                             | wrds.compa.clean    |
-| 13  | cflow2la_cfs  | Operating cash flows to lagged assets | wrds.compa.cashflow_vars      | dtdate,oancf,ib,dp,at                             | wrds.compa.clean    |
-| 14  | cflow2la_full | Operating cash flows to lagged assets | wrds.compa.cashflow_vars      | dtdate,oancf,ib,dp,at                             | wrds.compa.clean    |
-| 15  | cash2a        | Cash holdings to assets               | wrds.compa.liquidity_vars     | che,at                                            | wrds.compa.clean    |
-| 16  | booklev       | Book leverage                         | wrds.compa.leverage_vars      | dltt,dlc,at                                       | wrds.compa.clean    |
-| 17  | div2la        | Dividends to lagged assets            | wrds.compa.payout_vars        | dvc,prstkc,at                                     | wrds.compa.clean    |
-| 18  | rep2la        | Repurchases to lagged assets          | wrds.compa.payout_vars        | dvc,prstkc,at                                     | wrds.compa.clean    |
+|     | name          | label              | output_of                | inputs                                            | inputs_generated_by |
+|-----|---------------|--------------------|--------------------------|---------------------------------------------------|---------------------|
+| 0   | bookeq        | Book equity        | wrds.compa.book_equity   | at,lt,seq,ceq,txditc,pstk,pstkrv,pstkl,itcb       | wrds.compa.clean    |
+| 1   | shreq         | Shareholder equity | wrds.compa.book_equity   | at,lt,seq,ceq,txditc,pstk,pstkrv,pstkl,itcb       | wrds.compa.clean    |
+| 2   | pref_stock    | Preferred stock    | wrds.compa.book_equity   | at,lt,seq,ceq,txditc,pstk,pstkrv,pstkl,itcb       | wrds.compa.clean    |
+| 3   | tobinq        | Tobin Q            | wrds.compa.tobin_q       | at,lt,seq,ceq,txditc,pstk,pstkrv,pstkl,itcb,pr... | wrds.compa.clean    |
+| 4   | equityiss_tot | Equity issuance    | wrds.compa.issuance_vars | at,lt,seq,ceq,txditc,pstk,pstkrv,pstkl,itcb,ss... | wrds.compa.clean    |
 
 </div>
 
 ``` python
-fds.search('total assets')
+fds.search('total assets').head()
 ```
 
 <div>
 
 
-|     | name          | label                                     | output_of                  | inputs                | inputs_generated_by | type   |
-|-----|---------------|-------------------------------------------|----------------------------|-----------------------|---------------------|--------|
-| 110 | at            | Assets - Total                            | wrds.compa.clean           | NaN                   | NaN                 | double |
-| 10  | capx2la       | CAPX to lagged assets                     | wrds.compa.investment_vars | ppent,capx,at         | wrds.compa.clean    | NaN    |
-| 12  | cflow2la_is   | Operating cash flows to lagged assets     | wrds.compa.cashflow_vars   | dtdate,oancf,ib,dp,at | wrds.compa.clean    | NaN    |
-| 13  | cflow2la_cfs  | Operating cash flows to lagged assets     | wrds.compa.cashflow_vars   | dtdate,oancf,ib,dp,at | wrds.compa.clean    | NaN    |
-| 14  | cflow2la_full | Operating cash flows to lagged assets     | wrds.compa.cashflow_vars   | dtdate,oancf,ib,dp,at | wrds.compa.clean    | NaN    |
-| 15  | cash2a        | Cash holdings to assets                   | wrds.compa.liquidity_vars  | che,at                | wrds.compa.clean    | NaN    |
-| 17  | div2la        | Dividends to lagged assets                | wrds.compa.payout_vars     | dvc,prstkc,at         | wrds.compa.clean    | NaN    |
-| 18  | rep2la        | Repurchases to lagged assets              | wrds.compa.payout_vars     | dvc,prstkc,at         | wrds.compa.clean    | NaN    |
-| 87  | acdo          | Current Assets of Discontinued Operations | wrds.compa.clean           | NaN                   | NaN                 | double |
-| 88  | aco           | Current Assets Other Total                | wrds.compa.clean           | NaN                   | NaN                 | double |
+|     | name          | label                                 | output_of                  | inputs                | inputs_generated_by | type   |
+|-----|---------------|---------------------------------------|----------------------------|-----------------------|---------------------|--------|
+| 110 | at            | Assets - Total                        | wrds.compa.clean           | NaN                   | NaN                 | double |
+| 10  | capx2la       | CAPX to lagged assets                 | wrds.compa.investment_vars | ppent,capx,at         | wrds.compa.clean    | NaN    |
+| 12  | cflow2la_is   | Operating cash flows to lagged assets | wrds.compa.cashflow_vars   | dtdate,oancf,ib,dp,at | wrds.compa.clean    | NaN    |
+| 13  | cflow2la_cfs  | Operating cash flows to lagged assets | wrds.compa.cashflow_vars   | dtdate,oancf,ib,dp,at | wrds.compa.clean    | NaN    |
+| 14  | cflow2la_full | Operating cash flows to lagged assets | wrds.compa.cashflow_vars   | dtdate,oancf,ib,dp,at | wrds.compa.clean    | NaN    |
 
 </div>
 
