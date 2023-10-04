@@ -65,7 +65,7 @@ class Connection(object):
         Done
         """
         self._verbose = verbose
-        self._password = os.getenv("WRDS_PASS","")
+        self._password = os.getenv("WRDS_PASS","") # MION: originally this was self._password = ""
         # If user passed in any of these parameters, override defaults.
         self._username = kwargs.get("wrds_username", "")
         # PGHOST if set will override default for first attempt
@@ -80,7 +80,7 @@ class Connection(object):
             self.connect()
             self.load_library_list()
 
-    def __make_sa_engine_conn(self, raise_err=False):
+    def __make_sa_engine_conn(self, raise_err=True):  #MION changed raise_err default to True
         username = self._username
         hostname = self._hostname
         password = urllib.parse.quote_plus(self._password)
@@ -149,10 +149,12 @@ class Connection(object):
         self.engine = None
 
     def __enter__(self):
+        print("Making connection")
         self.connect()
         return self
 
     def __exit__(self, *args):
+        print("closing connection")
         self.close()
 
     def load_library_list(self):
@@ -671,6 +673,16 @@ def download(sql_string: str=None,
         wrds_username = os.getenv('WRDS_USERNAME')
         if wrds_username is None: wrds_username = input("Enter your WRDS username: ") 
 
-    with Connection(wrds_username = wrds_username) as db:
+    #The context manager does not seem to close connections properly
+    #with Connection(wrds_username = wrds_username) as db:
+    #    df = db.raw_sql(sql=sql_string, params=params)
+
+    try:
+        db = Connection(wrds_username=os.getenv('WRDS_USERNAME'))
         df = db.raw_sql(sql=sql_string, params=params)
+    except Exception as err:
+        raise err 
+    finally:
+        db.close()
+
     return df

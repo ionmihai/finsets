@@ -10,16 +10,21 @@ import pandasmore as pdm
 from . import wrds_api
 
 # %% ../../nbs/01_wrds/linking.ipynb 6
-def gvkey_permno_m(wrds_username: str=None) -> pd.DataFrame:
+def gvkey_permno_m(wrds_username: str=None,
+                   obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded
+                   ) -> pd.DataFrame:
     """CRSP Monthly ids, with gvkeys"""
 
-    sql_string="""SELECT a.date, a.permno, c.gvkey
+    limit_clause = f"LIMIT {obs_limit}" if obs_limit is not None else ""
+    sql_string=f"""SELECT a.date, a.permno, c.gvkey
                   FROM crsp.msf a
                   INNER JOIN crsp.msenames b ON a.permno = b.permno
                                              AND a.date BETWEEN b.namedt AND b.nameendt 
                   INNER JOIN crsp.ccmxpf_lnkhist c ON a.permno = c.lpermno 
                                                    AND c.linktype IN ('LU','LC') AND c.linkprim IN ('P','C')
-                                                   AND a.date BETWEEN c.linkdt AND COALESCE(c.linkenddt, CURRENT_DATE)"""
+                                                   AND a.date BETWEEN c.linkdt AND COALESCE(c.linkenddt, CURRENT_DATE)
+                    {limit_clause}                                   
+                """
     
     df = wrds_api.download(sql_string, wrds_username)
     df = pdm.setup_panel(df, panel_ids='permno', time_var='date', freq='M',
@@ -28,15 +33,20 @@ def gvkey_permno_m(wrds_username: str=None) -> pd.DataFrame:
     return df.reset_index()[['permno','Mdate','gvkey']].copy()  
 
 # %% ../../nbs/01_wrds/linking.ipynb 9
-def gvkey_permno_a(wrds_username: str=None) -> pd.DataFrame:
+def gvkey_permno_a(wrds_username: str=None,
+                   obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded
+                   ) -> pd.DataFrame:
     """qvkey to permno correspondence at the annual frequency. As done by CCM."""
 
+    limit_clause = f"LIMIT {obs_limit}" if obs_limit is not None else ""
     sql_string=f"""SELECT a.datadate, a.gvkey , b.lpermno as permno
                     FROM comp.funda a
                     INNER JOIN crsp.ccmxpf_lnkhist  b ON a.gvkey = b.gvkey
                     WHERE datadate BETWEEN b.linkdt AND COALESCE(b.linkenddt, CURRENT_DATE)
                             AND b.linktype IN ('LU','LC') AND b.linkprim IN ('P','C')
-                            AND indfmt='INDL' AND datafmt='STD' AND popsrc='D' AND consol='C'"""
+                            AND indfmt='INDL' AND datafmt='STD' AND popsrc='D' AND consol='C'
+                    {limit_clause}            
+                """
     
     df = wrds_api.download(sql_string, wrds_username)
     df = pdm.setup_panel(df, panel_ids='permno', time_var='datadate', freq='A',
@@ -45,15 +55,20 @@ def gvkey_permno_a(wrds_username: str=None) -> pd.DataFrame:
     return df.reset_index()[['permno','Adate','gvkey']].copy()  
 
 # %% ../../nbs/01_wrds/linking.ipynb 12
-def gvkey_permno_q(wrds_username: str=None) -> pd.DataFrame:
+def gvkey_permno_q(wrds_username: str=None,
+                   obs_limit : int=None, #Number of rows to download. If None, full dataset will be downloaded
+                   ) -> pd.DataFrame:
     """qvkey to permno correspondence at the quarterly frequency. As done by CCM."""
     
+    limit_clause = f"LIMIT {obs_limit}" if obs_limit is not None else ""
     sql_string=f"""SELECT a.datadate, a.gvkey , b.lpermno as permno
                     FROM comp.fundq a
                     INNER JOIN crsp.ccmxpf_lnkhist  b ON a.gvkey = b.gvkey
                     WHERE datadate BETWEEN b.linkdt AND COALESCE(b.linkenddt, CURRENT_DATE)
                             AND b.linktype IN ('LU','LC') AND b.linkprim IN ('P','C')
-                            AND indfmt='INDL' AND datafmt='STD' AND popsrc='D' AND consol='C'"""
+                            AND indfmt='INDL' AND datafmt='STD' AND popsrc='D' AND consol='C'            
+                    {limit_clause}
+                """
     
     df = wrds_api.download(sql_string, wrds_username)
     df = pdm.setup_panel(df, panel_ids='permno', time_var='datadate', freq='Q',

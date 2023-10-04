@@ -40,11 +40,14 @@ def raw_metadata_extra(wrds_username: str=None
         wrds_username = os.getenv('WRDS_USERNAME')
         if wrds_username is None: wrds_username = input("Enter your WRDS username: ") 
 
-    with wrds_api.Connection(wrds_username = wrds_username) as db:
+    try:
+        db = wrds_api.Connection(wrds_username = wrds_username)
         msf = db.describe_table('crsp','msf')
         msf_rows = db.get_row_count('crsp','msf')
         mse = db.describe_table('crsp','msenames')
         mse_rows = db.get_row_count('crsp','msenames')
+    finally:
+        db.close()
         
     msf_meta = msf[['name','type']].copy()
     msf_meta['nr_rows'] = msf_rows
@@ -87,12 +90,16 @@ def parse_varlist(vars: List[str]=None,
     if vars is None: vars = default_raw_vars()
     vars = ['permno','permco','date','exchcd'] + [x for x in vars if x not in ['permno','permco','date','exchcd']]
 
-    with wrds_api.Connection(wrds_username = wrds_username) as db:
+    try:
+        db = wrds_api.Connection(wrds_username = wrds_username)
         all_msf_vars = list(db.describe_table('crsp','msf').name)
         all_mse_vars = list(db.describe_table('crsp','msenames').name)
         my_msf_vars = [f'a.{x}' for x in vars if x in all_msf_vars]
         my_mse_vars = [f'b.{x}' for x in vars if (x in all_mse_vars) and (x not in all_msf_vars)]
         varlist_string = ','.join(my_msf_vars + my_mse_vars)
+    finally:
+        db.close()
+        
     return varlist_string
 
 # %% ../../nbs/01_wrds/01_crspm.ipynb 12
@@ -114,6 +121,7 @@ def delist_adj_ret(df: pd.DataFrame, # Requires `ret`,`exchcd`, ` `dlret`, and `
 
 # %% ../../nbs/01_wrds/01_crspm.ipynb 13
 def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; `permno`, `permco`, `date`, and 'exchcd' are added by default
+             obs_limit: int=None,  #Number of rows to download. If None, full dataset will be downloaded             
              wrds_username: str=None,       #If None, looks for WRDS_USERNAME with `os.getenv`, then prompts you if needed
              start_date: str="01/01/1900",  # Start date in MM/DD/YYYY format
              end_date: str=None,            # End date in MM/DD/YYYY format; if None, defaults to current date  
@@ -124,6 +132,7 @@ def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; `per
         Creates `ret_adj` for delisting based on Shumway and Warther (1999) and Johnson and Zhao (2007)"""
 
     varlist_string = parse_varlist(vars, wrds_username)
+    limit_clause = f"LIMIT {obs_limit}" if obs_limit is not None else ""
     sql_string = f"""SELECT {varlist_string},  c.dlstcd, c.dlret 
                         FROM crsp.msf AS a 
                         LEFT JOIN crsp.msenames AS b
@@ -131,6 +140,7 @@ def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; `per
                         LEFT JOIN crsp.msedelist as c
                             ON a.permno=c.permno AND date_trunc('month', a.date) = date_trunc('month', c.dlstdt)                            
                             WHERE a.date BETWEEN '{start_date}' AND COALESCE(%(end)s, CURRENT_DATE) 
+                    {limit_clause}
                 """
     df = wrds_api.download(sql_string, wrds_username=wrds_username, params={'end':end_date})
     if add_delist_adj_ret: df = delist_adj_ret(df, adj_ret_var)
@@ -140,6 +150,7 @@ def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; `per
 # %% ../../nbs/01_wrds/01_crspm.ipynb 16
 def clean(df: pd.DataFrame=None,        # If None, downloads `vars` using `download` function; else, must contain `permno` and `date` columns
           vars: List[str]=None,         # If None, downloads `default_raw_vars`
+          obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded
           wrds_username: str=None,      # If None, looks for WRDS_USERNAME with `os.getenv`, then prompts you if needed
           start_date: str="01/01/1900", # Start date in MM/DD/YYYY format
           end_date: str=None,           # End date. Default is current date          
@@ -147,6 +158,6 @@ def clean(df: pd.DataFrame=None,        # If None, downloads `vars` using `downl
           ) -> pd.DataFrame:
     """Applies `pandasmore.setup_panel` to `df`. If `df` is None, downloads `vars` using `download` function."""
 
-    if df is None: df = download(vars=vars, wrds_username=wrds_username, start_date=start_date, end_date=end_date)
+    if df is None: df = download(vars=vars, obs_limit=obs_limit, wrds_username=wrds_username, start_date=start_date, end_date=end_date)
     df = pdm.setup_panel(df, panel_ids='permno', time_var='date', freq='M', **clean_kwargs)
     return df 
