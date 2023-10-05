@@ -1,4 +1,4 @@
-__version__ = "0.0.2"
+__version__ = "0.0.3"
 from pathlib import Path
 
 PACKAGE_DIR = Path(__file__).parent.parent

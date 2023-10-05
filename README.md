@@ -8,7 +8,7 @@ Each module handles a different data source. Almost all submodules
 (other than utility ones) have a
 [`download`](https://ionmihai.github.io/finsets/01_wrds/wrds_api.html#download)
 function that downloads the raw data and a
-[`clean`](https://ionmihai.github.io/finsets/01_wrds/crspm.html#clean)
+[`clean`](https://ionmihai.github.io/finsets/01_wrds/ratios.html#clean)
 function that processes the data into a `pandas.DataFrame` having, as
 index, either:
 
