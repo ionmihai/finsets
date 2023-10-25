@@ -86,7 +86,7 @@ def download(vars: List[str]=None, # If None, downloads all variables
 # %% ../../nbs/01_wrds/05_ratios.ipynb 14
 def clean(df: pd.DataFrame=None,        # If None, downloads `vars` using `download` function; else, must contain `permno` and `date` columns
           vars: List[str]=None,         # If None, downloads `default_raw_vars`
-          obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded
+          obs_limit: int=None,          # Number of rows to download. If None, full dataset will be downloaded
           wrds_username: str=None,      # If None, looks for WRDS_USERNAME with `os.getenv`, then prompts you if needed
           start_date: str="01/01/1900", # Start date in MM/DD/YYYY format
           end_date: str=None,           # End date. Default is current date          

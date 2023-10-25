@@ -62,7 +62,7 @@ def raw_metadata_extra(wrds_username: str=None
     crsp_meta = (pd.concat([msf_meta, mse_meta],axis=0, ignore_index=True)
                 .merge(raw_metadata()[['name','label']], how='left', on='name'))
     
-    crsp_meta['output_of'] = 'wrds.crspm.download()'
+    crsp_meta['output_of'] = 'wrds.crspm.download'
     crsp_meta = pdm.order_columns(crsp_meta,these_first=['name','label','output_of'])
     for v in list(crsp_meta.columns):
         crsp_meta[v] = crsp_meta[v].astype('string')
@@ -79,7 +79,8 @@ def default_raw_vars():
 
 # %% ../../nbs/01_wrds/01_crspm.ipynb 11
 def parse_varlist(vars: List[str]=None,
-                  wrds_username: str=None
+                  wrds_username: str=None,
+                  add_delist_adj_ret: str=None
                   ) -> str:
     """Figure out which `vars` come from the `crsp.msf` table and which come from the `crsp.msenames` table and add a. and b. prefixes"""
 
@@ -88,7 +89,9 @@ def parse_varlist(vars: List[str]=None,
         if wrds_username is None: wrds_username = input("Enter your WRDS username: ") 
 
     if vars is None: vars = default_raw_vars()
-    vars = ['permno','permco','date','exchcd'] + [x for x in vars if x not in ['permno','permco','date','exchcd']]
+    adj_vars = ['ret','dlret','dlstcd'] if add_delist_adj_ret else []
+    req_vars = ['permno','permco','date','exchcd'] + adj_vars
+    vars =  req_vars + [x for x in vars if x not in req_vars]
 
     try:
         db = wrds_api.Connection(wrds_username = wrds_username)
@@ -123,31 +126,34 @@ def delist_adj_ret(df: pd.DataFrame, # Requires `ret`,`exchcd`, ` `dlret`, and `
 def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; `permno`, `permco`, `date`, and 'exchcd' are added by default
              obs_limit: int=None,  #Number of rows to download. If None, full dataset will be downloaded             
              wrds_username: str=None,       #If None, looks for WRDS_USERNAME with `os.getenv`, then prompts you if needed
-             start_date: str="01/01/1900",  # Start date in MM/DD/YYYY format
-             end_date: str=None,            # End date in MM/DD/YYYY format; if None, defaults to current date  
+             start_date: str=None,          # Start date in MM/DD/YYYY format
+             end_date: str=None,            # End date in MM/DD/YYYY format  
              add_delist_adj_ret: bool=True, # Whether to calculate delisting-adjusted returns 
              adj_ret_var: str='ret_adj'     # What to call the returns adjusted for delisting bias
              ) -> pd.DataFrame:
     """Downloads `vars` from `start_date` to `end_date` from WRDS crsp.msf and crsp.msenames libraries. 
         Creates `ret_adj` for delisting based on Shumway and Warther (1999) and Johnson and Zhao (2007)"""
 
-    varlist_string = parse_varlist(vars, wrds_username)
-    limit_clause = f"LIMIT {obs_limit}" if obs_limit is not None else ""
+    varlist_string = parse_varlist(vars, wrds_username, add_delist_adj_ret=add_delist_adj_ret)
     sql_string = f"""SELECT {varlist_string},  c.dlstcd, c.dlret 
                         FROM crsp.msf AS a 
                         LEFT JOIN crsp.msenames AS b
                             ON a.permno=b.permno AND b.namedt<=a.date AND a.date<=b.nameendt                     
                         LEFT JOIN crsp.msedelist as c
                             ON a.permno=c.permno AND date_trunc('month', a.date) = date_trunc('month', c.dlstdt)                            
-                            WHERE a.date BETWEEN '{start_date}' AND COALESCE(%(end)s, CURRENT_DATE) 
-                    {limit_clause}
                 """
-    df = wrds_api.download(sql_string, wrds_username=wrds_username, params={'end':end_date})
+    if start_date is not None: sql_string += r"AND date >= %(start_date)s"
+    if end_date is not None: sql_string += r"AND date <= %(end_date)s"
+    if obs_limit is not None: sql_string += r"LIMIT %(obs_limit)s"
+
+    df = wrds_api.download(sql_string, wrds_username=wrds_username, 
+                             params={'start_date':start_date, 'end_date':end_date, 'obs_limit':obs_limit})
+    
     if add_delist_adj_ret: df = delist_adj_ret(df, adj_ret_var)
     else: df = df.drop(['dlret','dlstcd'], axis=1)
     return df 
 
-# %% ../../nbs/01_wrds/01_crspm.ipynb 16
+# %% ../../nbs/01_wrds/01_crspm.ipynb 17
 def clean(df: pd.DataFrame=None,        # If None, downloads `vars` using `download` function; else, must contain `permno` and `date` columns
           vars: List[str]=None,         # If None, downloads `default_raw_vars`
           obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded

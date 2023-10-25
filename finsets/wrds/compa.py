@@ -80,26 +80,31 @@ def default_raw_vars():
 def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; else `permno`, `permco`, and `date` are added by default
              obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded
              wrds_username: str=None, #If None, looks for WRDS_USERNAME with `os.getenv`, then prompts you if needed
-             start_date: str="01/01/1900", # Start date in MM/DD/YYYY format
-             end_date: str=None #End date in MM/DD/YYYY format; if None, defaults to current date
+             start_date: str=None, # Start date in MM/DD/YYYY format
+             end_date: str=None #End date in MM/DD/YYYY format
              ) -> pd.DataFrame:
     """Downloads `vars` from `start_date` to `end_date` from WRDS `comp.funda` library and adds PERMNO and PERMCO as in CCM"""
 
     if vars is None: vars = default_raw_vars()
+    valid_vars = list(raw_metadata_extra().name)
+    invalid_vars = [v for v in vars if v not in valid_vars]
+    if invalid_vars: raise ValueError(f"These vars are not in the database: {invalid_vars}") 
     vars = ','.join(['a.gvkey', 'a.datadate'] + 
                     [f'a.{x}' for x in vars if x not in ['datadate', 'gvkey']])
 
-    limit_clause = f"LIMIT {obs_limit}" if obs_limit is not None else ""
     sql_string=f"""SELECT b.lpermno as permno, b.lpermco as permco, b.liid as iid, {vars}
                     FROM comp.funda AS a
                     INNER JOIN crsp.ccmxpf_lnkhist AS b ON a.gvkey = b.gvkey
                     WHERE datadate BETWEEN b.linkdt AND COALESCE(b.linkenddt, CURRENT_DATE)
                             AND b.linktype IN ('LU','LC') AND b.linkprim IN ('P','C')
                             AND indfmt='INDL' AND datafmt='STD' AND popsrc='D' AND consol='C'
-                            AND datadate BETWEEN '{start_date}' AND COALESCE(%(end)s, CURRENT_DATE)
-                    {limit_clause}
                 """
-    return wrds_api.download(sql_string, wrds_username=wrds_username, params={'end':end_date})
+    if start_date is not None: sql_string += r"AND datadate >= %(start_date)s"
+    if end_date is not None: sql_string += r"AND datadate <= %(end_date)s"
+    if obs_limit is not None: sql_string += r"LIMIT %(obs_limit)s"
+
+    return wrds_api.download(sql_string, wrds_username=wrds_username, 
+                             params={'start_date':start_date, 'end_date':end_date, 'obs_limit':obs_limit})
 
 # %% ../../nbs/01_wrds/03_compa.ipynb 14
 def clean(df: pd.DataFrame=None,        # If None, downloads `vars` using `download` function; else, must contain `permno` and `datadate` columns
