@@ -160,9 +160,9 @@ def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; `per
                         LEFT JOIN {LIBRARY}.{DELIST_TABLE} as c
                             ON a.permno=c.permno AND date_trunc('month', a.date) = date_trunc('month', c.dlstdt)                            
                 """
-    if start_date is not None: sql_string += r"AND date >= %(start_date)s"
-    if end_date is not None: sql_string += r"AND date <= %(end_date)s"
-    if obs_limit is not None: sql_string += r"LIMIT %(obs_limit)s"
+    if start_date is not None: sql_string += r" AND date >= %(start_date)s"
+    if end_date is not None: sql_string += r" AND date <= %(end_date)s"
+    if obs_limit is not None: sql_string += r" LIMIT %(obs_limit)s"
 
     df = wrds_api.download(sql_string, wrds_username=wrds_username, 
                              params={'start_date':start_date, 'end_date':end_date, 'obs_limit':obs_limit})

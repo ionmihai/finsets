@@ -14,9 +14,26 @@ from . import wrds_api
 from .. import RESOURCES
 
 # %% auto 0
-__all__ = ['raw_metadata', 'raw_metadata_extra', 'default_raw_vars', 'download']
+__all__ = ['PROVIDER', 'URL', 'LIBRARY', 'TABLE', 'LINK_LIBRARY', 'LINK_TABLE', 'FREQ', 'MIN_YEAR', 'MAX_YEAR',
+           'ENTITY_ID_IN_RAW_DSET', 'ENTITY_ID_IN_CLEAN_DSET', 'TIME_VAR_IN_RAW_DSET', 'TIME_VAR_IN_CLEAN_DSET',
+           'raw_metadata', 'raw_metadata_extra', 'default_raw_vars', 'parse_varlist', 'download']
 
 # %% ../../nbs/01_wrds/06_ibes_ltg.ipynb 4
+PROVIDER = 'Refinitiv via WRDS'
+URL = 'https://wrds-www.wharton.upenn.edu/pages/get-data/ibes-thomson-reuters/ibes-academic/unadjusted-detail/history/'
+LIBRARY = 'ibes'
+TABLE = 'detu_epsus'
+LINK_LIBRARY = 'wrdsapps_link_crsp_ibes'
+LINK_TABLE = 'ibcrsphist'
+FREQ = 'M'
+MIN_YEAR = 1925
+MAX_YEAR = None
+ENTITY_ID_IN_RAW_DSET = 'permno'
+ENTITY_ID_IN_CLEAN_DSET = 'permno'
+TIME_VAR_IN_RAW_DSET = 'date'
+TIME_VAR_IN_CLEAN_DSET = 'Mdate'
+
+# %% ../../nbs/01_wrds/06_ibes_ltg.ipynb 5
 def raw_metadata(rawfile: str|Path=RESOURCES/'ibes_detu_epsus_variable_descriptions.csv', # location of the raw variable labels file
              ) -> pd.DataFrame:
     "Loads raw variable labels file, cleans it and returns it as a pd.DataFrame"
@@ -31,10 +48,10 @@ def raw_metadata(rawfile: str|Path=RESOURCES/'ibes_detu_epsus_variable_descripti
     df.columns = ['name','label','output_of','type']
     return df
 
-# %% ../../nbs/01_wrds/06_ibes_ltg.ipynb 6
+# %% ../../nbs/01_wrds/06_ibes_ltg.ipynb 7
 def raw_metadata_extra(wrds_username: str=None
              ) -> pd.DataFrame:
-    "Collects metadata from WRDS `ibes.detu_epsus` table and merges it with `raw_metadata()`."
+    "Collects metadata from WRDS `{LIBRARY}.{TABLE}` table and merges it with `raw_metadata()`."
 
     if wrds_username is None:
         wrds_username = os.getenv('WRDS_USERNAME')
@@ -42,15 +59,15 @@ def raw_metadata_extra(wrds_username: str=None
 
     try:
         db = wrds_api.Connection(wrds_username = wrds_username)
-        funda = db.describe_table('ibes','detu_epsus')
-        nr_rows = db.get_row_count('ibes','detu_epsus')
+        funda = db.describe_table(LIBRARY,TABLE)
+        nr_rows = db.get_row_count(LIBRARY,TABLE)
     finally:
         db.close()
 
     meta = funda[['name','type']].copy()
     meta['nr_rows'] = nr_rows
-    meta['wrds_library'] = 'ibes'
-    meta['wrds_table'] = 'detu_epsus'
+    meta['wrds_library'] = LIBRARY
+    meta['wrds_table'] = TABLE
 
     meta = meta.merge(raw_metadata()[['name','label']], how='left', on='name')
     
@@ -66,6 +83,25 @@ def default_raw_vars():
     return ['ticker', 'value', 'fpi', 'anndats', 'fpedats', 'revdats', 'actdats', 'estimator', 'analys', 'pdf']
 
 # %% ../../nbs/01_wrds/06_ibes_ltg.ipynb 10
+def parse_varlist(vars: List[str]=None, #list of variables requested by user
+                  req_vars: List[str] = ['ticker', 'anndats'], #list of variables that will automatically get downloaded, even if not in `vars`
+                  prefix: str='a.', #string to add in front of each variable name when we build the SQL string of variable names
+                  ) -> str:
+    """Add required variables to requested variables, validate them, and build the sql string with their names"""
+
+    # Build full list of variables that will be downloaded
+    if vars is None: vars = default_raw_vars()
+    if req_vars is None: req_vars = []
+    vars =  req_vars + [x for x in vars if x not in req_vars] #in case `vars` already contains some of the required variables
+
+    # Validate variables to be downloaded (make sure that they are in the target database)
+    valid_vars = list(raw_metadata_extra().name)
+    invalid_vars = [v for v in vars if v not in valid_vars]
+    if invalid_vars: raise ValueError(f"These vars are not in the database: {invalid_vars}") 
+
+    return ','.join([f'{prefix}{var_name}' for var_name in vars])
+
+# %% ../../nbs/01_wrds/06_ibes_ltg.ipynb 11
 def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; `permno`, `ticker`, and `anndats` added by default
              obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded
              wrds_username: str=None, #If None, looks for WRDS_USERNAME with `os.getenv`, then prompts you if needed
@@ -75,15 +111,14 @@ def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; `per
              ) -> pd.DataFrame:
     """Downloads `vars` from `start_date` to `end_date` from WRDS `ibes.detu_epsus` library and adds PERMNO from CRSP"""
 
-    if vars is None: vars = default_raw_vars()
-    vars = ','.join(['a.ticker', 'a.anndats'] + 
-                    [f'a.{x}' for x in vars if x not in ['ticker', 'anndats']])
+    vars = parse_varlist(vars)
 
     sql_string=f"""SELECT {vars}, b.permno
-                        FROM ibes.detu_epsus AS a
-                        LEFT JOIN wrdsapps_link_crsp_ibes.ibcrsphist AS b
+                        FROM {LIBRARY}.{TABLE} AS a
+                        LEFT JOIN {LINK_LIBRARY}.{LINK_TABLE} AS b
                         ON a.ticker = b.ticker
                         WHERE a.anndats BETWEEN b.sdate AND b.edate
+                                AND fpi='0'
                 """
     if permno_match_score is not None: sql_string += r" AND score IN %(permno_match_score)s"
     if start_date is not None: sql_string += r" AND anndats >= %(start_date)s"

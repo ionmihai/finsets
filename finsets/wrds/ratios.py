@@ -14,9 +14,24 @@ from . import wrds_api
 from .. import RESOURCES
 
 # %% auto 0
-__all__ = ['raw_metadata', 'raw_metadata_extra', 'download', 'clean']
+__all__ = ['PROVIDER', 'URL', 'LIBRARY', 'TABLE', 'FREQ', 'MIN_YEAR', 'MAX_YEAR', 'ENTITY_ID_IN_RAW_DSET',
+           'ENTITY_ID_IN_CLEAN_DSET', 'TIME_VAR_IN_RAW_DSET', 'TIME_VAR_IN_CLEAN_DSET', 'raw_metadata',
+           'raw_metadata_extra', 'download', 'clean']
 
 # %% ../../nbs/01_wrds/05_ratios.ipynb 4
+PROVIDER = 'Wharton Research Data Services (WRDS)'
+URL = 'https://wrds-www.wharton.upenn.edu/pages/get-data/financial-ratios-suite-wrds/financial-ratios-with-ibes-subscription/financial-ratios-firm-level-ibes/'
+LIBRARY = 'wrdsapps_finratio_ibes'
+TABLE = 'firm_ratio_ibes'
+FREQ = 'M'
+MIN_YEAR = 1970
+MAX_YEAR = None
+ENTITY_ID_IN_RAW_DSET = 'permno'
+ENTITY_ID_IN_CLEAN_DSET = 'permno'
+TIME_VAR_IN_RAW_DSET = 'public_date'
+TIME_VAR_IN_CLEAN_DSET = 'Mdate'
+
+# %% ../../nbs/01_wrds/05_ratios.ipynb 5
 def raw_metadata(rawfile: str|Path=RESOURCES/'finratio_firm_ibes_variable_descriptions.csv', # location of the raw variable labels file
              ) -> pd.DataFrame:
     "Loads raw variable labels file, cleans it and returns it as a pd.DataFrame"
@@ -31,10 +46,10 @@ def raw_metadata(rawfile: str|Path=RESOURCES/'finratio_firm_ibes_variable_descri
     df.columns = ['name','label','output_of','type', 'group']
     return df
 
-# %% ../../nbs/01_wrds/05_ratios.ipynb 7
+# %% ../../nbs/01_wrds/05_ratios.ipynb 8
 def raw_metadata_extra(wrds_username: str=None
              ) -> pd.DataFrame:
-    "Collects metadata from WRDS `wrdsapps_finratio_ibes.firm_ratio_ibes` and merges it with `variable_labels`."
+    "Collects metadata from WRDS `{LIBRARY}.{TABLE}` and merges it with `variable_labels`."
 
     if wrds_username is None:
         wrds_username = os.getenv('WRDS_USERNAME')
@@ -42,15 +57,15 @@ def raw_metadata_extra(wrds_username: str=None
 
     try:
         db = wrds_api.Connection(wrds_username = wrds_username)
-        finr = db.describe_table('wrdsapps_finratio_ibes','firm_ratio_ibes')
-        finr_rows = db.get_row_count('wrdsapps_finratio_ibes','firm_ratio_ibes')
+        finr = db.describe_table(LIBRARY,TABLE)
+        finr_rows = db.get_row_count(LIBRARY,TABLE)
     finally:
         db.close()
         
     finr_meta = finr[['name','type']].copy()
     finr_meta['nr_rows'] = finr_rows
-    finr_meta['wrds_library'] = 'wrdsapps_finratio_ibes'
-    finr_meta['wrds_table'] = 'firm_ratio_ibes'
+    finr_meta['wrds_library'] = LIBRARY
+    finr_meta['wrds_table'] = TABLE
 
     df = finr_meta.merge(raw_metadata()[['name','label']], how='left', on='name')
     
@@ -61,29 +76,29 @@ def raw_metadata_extra(wrds_username: str=None
     
     return df
 
-# %% ../../nbs/01_wrds/05_ratios.ipynb 10
+# %% ../../nbs/01_wrds/05_ratios.ipynb 11
 def download(vars: List[str]=None, # If None, downloads all variables
              obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded
              wrds_username: str=None, #If None, looks for WRDS_USERNAME with `os.getenv`, then prompts you if needed
-             start_date: str="01/01/1900", # Start date in MM/DD/YYYY format
-             end_date: str=None #End date in MM/DD/YYYY format; if None, defaults to current date
+             start_date: str=None, # Start date in MM/DD/YYYY format
+             end_date: str=None #End date in MM/DD/YYYY format
              ) -> pd.DataFrame:
-    """Downloads `vars` from `start_date` to `end_date` from WRDS `wrdsapps_finratio_ibes.firm_ratio_ibes` library"""
+    """Downloads `vars` from `start_date` to `end_date` from WRDS `{LIBRARY}.{TABLE}` library"""
 
     if vars is None: 
         vars = '*'
     else:
         vars = ','.join(['public_date','permno'] + [f'{x}' for x in vars if x not in ['public_date', 'permno']])
 
-    limit_clause = f"LIMIT {obs_limit}" if obs_limit is not None else ""
-    sql_string=f"""SELECT  {vars}
-                    FROM wrdsapps_finratio_ibes.firm_ratio_ibes
-                    WHERE public_date BETWEEN '{start_date}' AND COALESCE(%(end)s, CURRENT_DATE)
-                    {limit_clause}
-                """
-    return wrds_api.download(sql_string, wrds_username=wrds_username, params={'end':end_date})
+    sql_string=f"""SELECT {vars} FROM {LIBRARY}.{TABLE} WHERE 1 = 1 """
+    if start_date is not None: sql_string += r" AND public_date >= %(start_date)s"
+    if end_date is not None: sql_string += r" AND public_date <= %(end_date)s"
+    if obs_limit is not None: sql_string += r" LIMIT %(obs_limit)s"
 
-# %% ../../nbs/01_wrds/05_ratios.ipynb 14
+    return wrds_api.download(sql_string, wrds_username=wrds_username, 
+                             params={'start_date':start_date, 'end_date':end_date, 'obs_limit':obs_limit})
+
+# %% ../../nbs/01_wrds/05_ratios.ipynb 15
 def clean(df: pd.DataFrame=None,        # If None, downloads `vars` using `download` function; else, must contain `permno` and `date` columns
           vars: List[str]=None,         # If None, downloads `default_raw_vars`
           obs_limit: int=None,          # Number of rows to download. If None, full dataset will be downloaded
@@ -95,5 +110,5 @@ def clean(df: pd.DataFrame=None,        # If None, downloads `vars` using `downl
     """Applies `pandasmore.setup_panel` to `df`. If `df` is None, downloads `vars` using `download` function."""
 
     if df is None: df = download(vars=vars, obs_limit=obs_limit, wrds_username=wrds_username, start_date=start_date, end_date=end_date)
-    df = pdm.setup_panel(df, panel_ids='permno', time_var='public_date', freq='M', **clean_kwargs)
+    df = pdm.setup_panel(df, panel_ids=ENTITY_ID_IN_CLEAN_DSET, time_var=TIME_VAR_IN_RAW_DSET, freq=FREQ, **clean_kwargs)
     return df 

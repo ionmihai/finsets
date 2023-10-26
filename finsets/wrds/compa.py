@@ -127,9 +127,9 @@ def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; else
                             AND b.linktype IN ('LU','LC') AND b.linkprim IN ('P','C')
                             AND indfmt='INDL' AND datafmt='STD' AND popsrc='D' AND consol='C'
                 """
-    if start_date is not None: sql_string += r"AND datadate >= %(start_date)s"
-    if end_date is not None: sql_string += r"AND datadate <= %(end_date)s"
-    if obs_limit is not None: sql_string += r"LIMIT %(obs_limit)s"
+    if start_date is not None: sql_string += r" AND datadate >= %(start_date)s"
+    if end_date is not None: sql_string += r" AND datadate <= %(end_date)s"
+    if obs_limit is not None: sql_string += r" LIMIT %(obs_limit)s"
 
     return wrds_api.download(sql_string, wrds_username=wrds_username, 
                              params={'start_date':start_date, 'end_date':end_date, 'obs_limit':obs_limit})
