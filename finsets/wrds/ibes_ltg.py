@@ -82,7 +82,7 @@ def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; `per
     sql_string=f"""SELECT {vars}, b.permno
                         FROM ibes.detu_epsus AS a
                         LEFT JOIN wrdsapps_link_crsp_ibes.ibcrsphist AS b
-                        ON a.ticker=b.ticker
+                        ON a.ticker = b.ticker
                         WHERE a.anndats BETWEEN b.sdate AND b.edate
                 """
     if permno_match_score is not None: sql_string += r" AND score IN %(permno_match_score)s"

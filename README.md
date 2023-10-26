@@ -20,7 +20,7 @@ index, either:
 
 The period date in the index will be named following the pattern `Xdate`
 where X is the string literal representing the frequency of the data
-(e.g. `Mdate` for monthly data, `Qdate` for quarterly data, `Adate` for
+(e.g. `Mdate` for monthly data, `Qdate` for quarterly data, `Ydate` for
 annual data).
 
 [Documentation site](https://ionmihai.github.io/finsets/).
