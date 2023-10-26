@@ -16,8 +16,7 @@ from .. import RESOURCES
 # %% auto 0
 __all__ = ['PROVIDER', 'URL', 'LIBRARY', 'TABLE', 'NAMES_TABLE', 'DELIST_TABLE', 'FREQ', 'MIN_YEAR', 'MAX_YEAR',
            'ENTITY_ID_IN_RAW_DSET', 'ENTITY_ID_IN_CLEAN_DSET', 'TIME_VAR_IN_RAW_DSET', 'TIME_VAR_IN_CLEAN_DSET',
-           'raw_metadata', 'raw_metadata_extra', 'default_raw_vars', 'parse_varlist', 'delist_adj_ret', 'download',
-           'clean']
+           'LABELS_FILE', 'raw_metadata', 'default_raw_vars', 'parse_varlist', 'delist_adj_ret', 'download', 'clean']
 
 # %% ../../nbs/01_wrds/01_crspm.ipynb 4
 PROVIDER = 'Wharton Research Data Services (WRDS)'
@@ -33,31 +32,17 @@ ENTITY_ID_IN_RAW_DSET = 'permno'
 ENTITY_ID_IN_CLEAN_DSET = 'permno'
 TIME_VAR_IN_RAW_DSET = 'date'
 TIME_VAR_IN_CLEAN_DSET = 'Mdate'
+LABELS_FILE = RESOURCES/'crspm_variable_descriptions.csv'
 
 # %% ../../nbs/01_wrds/01_crspm.ipynb 5
-def raw_metadata(rawfile: str|Path=RESOURCES/'crspm_variable_descriptions.csv', # location of the raw variable labels file
+def raw_metadata(wrds_username: str=None
              ) -> pd.DataFrame:
-    "Loads raw variable labels file, cleans it and returns it as a pd.DataFrame"
+    "Collects metadata from WRDS `{LIBRARY}.{TABLE}` and `{LIBRARY}.{NAMES_TABLE}` tables and merges it with variable labels from LABELS_FILE"
 
-    df = pd.read_csv(rawfile)
-    df['output_of'] = 'wrds.crspm.clean'
-
-    df['Variable Label'] = df.apply(lambda row: row['Description'].replace(row['Variable Name'].strip()+' -- ', ''), axis=1)
-    df['Variable Label'] = df.apply(lambda row: row['Variable Label'].replace( '(' + row['Variable Name'].strip() + ')', ''), axis=1)
-    df['Variable Name'] = df['Variable Name'].str.strip().str.lower()
-    df = df[['Variable Name', 'Variable Label','output_of', 'Type']].copy()
-    df.columns = ['name','label','output_of','type']
-    return df
-
-# %% ../../nbs/01_wrds/01_crspm.ipynb 8
-def raw_metadata_extra(wrds_username: str=None
-             ) -> pd.DataFrame:
-    "Collects metadata from WRDS `{LIBRARY}.{TABLE}` and `{LIBRARY}.{NAMES_TABLE}` tables and merges it with `variable_labels`."
-
+    # Get metadata from `{LIBRARY}.{TABLE}`
     if wrds_username is None:
         wrds_username = os.getenv('WRDS_USERNAME')
         if wrds_username is None: wrds_username = input("Enter your WRDS username: ") 
-
     try:
         db = wrds_api.Connection(wrds_username = wrds_username)
         msf = db.describe_table(LIBRARY,TABLE)
@@ -77,9 +62,17 @@ def raw_metadata_extra(wrds_username: str=None
     mse_meta['wrds_library'] = LIBRARY
     mse_meta['wrds_table'] = NAMES_TABLE
 
+    # Get variable labels from LABELS_FILE
+    df = pd.read_csv(LABELS_FILE)
+    df['Variable Label'] = df.apply(lambda row: row['Description'].replace(row['Variable Name'].strip()+' -- ', ''), axis=1)
+    df['Variable Label'] = df.apply(lambda row: row['Variable Label'].replace( '(' + row['Variable Name'].strip() + ')', ''), axis=1)
+    df['Variable Name'] = df['Variable Name'].str.strip().str.lower()
+    df = df[['Variable Name', 'Variable Label']].copy()
+    df.columns = ['name','label']
+
+    # Merge metadata and variable labels and clean up a bit
     crsp_meta = (pd.concat([msf_meta, mse_meta],axis=0, ignore_index=True)
-                .merge(raw_metadata()[['name','label']], how='left', on='name'))
-    
+                .merge(df, how='left', on='name'))
     crsp_meta['output_of'] = 'wrds.crspm.download'
     crsp_meta = pdm.order_columns(crsp_meta,these_first=['name','label','output_of'])
     for v in list(crsp_meta.columns):
@@ -87,7 +80,7 @@ def raw_metadata_extra(wrds_username: str=None
     
     return crsp_meta
 
-# %% ../../nbs/01_wrds/01_crspm.ipynb 10
+# %% ../../nbs/01_wrds/01_crspm.ipynb 7
 def default_raw_vars():
     """Default variables used in `download` if none are specified."""
     
@@ -95,7 +88,7 @@ def default_raw_vars():
             'ret', 'retx', 'shrout', 'prc', 
             'shrcd', 'exchcd','siccd','ticker','cusip','ncusip']            
 
-# %% ../../nbs/01_wrds/01_crspm.ipynb 12
+# %% ../../nbs/01_wrds/01_crspm.ipynb 9
 def parse_varlist(vars: List[str]=None,
                   wrds_username: str=None,
                   add_delist_adj_ret: str=None
@@ -123,7 +116,7 @@ def parse_varlist(vars: List[str]=None,
         
     return varlist_string
 
-# %% ../../nbs/01_wrds/01_crspm.ipynb 13
+# %% ../../nbs/01_wrds/01_crspm.ipynb 10
 def delist_adj_ret(df: pd.DataFrame, # Requires `ret`,`exchcd`, ` `dlret`, and `dlstcd` variables
                        adj_ret_var: str
                        ) -> pd.DataFrame:
@@ -140,7 +133,7 @@ def delist_adj_ret(df: pd.DataFrame, # Requires `ret`,`exchcd`, ` `dlret`, and `
     df = df.drop('npdelist', axis=1) 
     return df
 
-# %% ../../nbs/01_wrds/01_crspm.ipynb 14
+# %% ../../nbs/01_wrds/01_crspm.ipynb 11
 def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; `permno`, `permco`, `date`, and 'exchcd' are added by default
              obs_limit: int=None,  #Number of rows to download. If None, full dataset will be downloaded             
              wrds_username: str=None,       #If None, looks for WRDS_USERNAME with `os.getenv`, then prompts you if needed
@@ -171,7 +164,7 @@ def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; `per
     else: df = df.drop(['dlret','dlstcd'], axis=1)
     return df 
 
-# %% ../../nbs/01_wrds/01_crspm.ipynb 18
+# %% ../../nbs/01_wrds/01_crspm.ipynb 15
 def clean(df: pd.DataFrame=None,        # If None, downloads `vars` using `download` function; else, must contain `permno` and `date` columns
           vars: List[str]=None,         # If None, downloads `default_raw_vars`
           obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded

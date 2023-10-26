@@ -11,10 +11,15 @@ from  thefuzz import process, fuzz
 
 from fastcore.script import call_parse
 
+from . import RESOURCES
+
 # %% auto 0
-__all__ = ['features_metadata', 'raw_metadata', 'all_metadata', 'search']
+__all__ = ['METADATA_FILE', 'features_metadata', 'raw_metadata', 'all_metadata', 'search']
 
 # %% ../nbs/00_core.ipynb 5
+METADATA_FILE = RESOURCES/'all_metadata.pkl'
+
+# %% ../nbs/00_core.ipynb 6
 def features_metadata(submodules: list=['wrds', 'papers'] # list of submodules to collect metadata from
                       ) -> pd.DataFrame:
     "Go through `submodules` of `finsets` and collect metadata from all functions that have `return_metadata` parameter"
@@ -44,7 +49,7 @@ def features_metadata(submodules: list=['wrds', 'papers'] # list of submodules t
                                 df = pd.concat([df,new_meta],ignore_index=True)
     return df
 
-# %% ../nbs/00_core.ipynb 7
+# %% ../nbs/00_core.ipynb 8
 def raw_metadata(submodules=['wrds', 'papers'] # list of submodules to collect metadata from
                 ) -> pd.DataFrame:
     "Go through `submodules` of `finsets` and collect metadata from `raw_metadata` functions (if present)"
@@ -59,14 +64,16 @@ def raw_metadata(submodules=['wrds', 'papers'] # list of submodules to collect m
                 df = pd.concat([df,submodule.raw_metadata()],ignore_index=True)
     return df
 
-# %% ../nbs/00_core.ipynb 9
+# %% ../nbs/00_core.ipynb 10
 def all_metadata(submodules=['wrds', 'papers'] # list of submodules to collect metadata from
                 ) -> pd.DataFrame:
     "Collects `raw_metadata` and `features_metadata` from `submodules` of `finsets`"
 
-    return pd.concat([features_metadata(submodules), raw_metadata(submodules)], ignore_index=True)
+    df =  pd.concat([features_metadata(submodules), raw_metadata(submodules)], ignore_index=True)
+    df.to_pickle(METADATA_FILE)
+    return df 
 
-# %% ../nbs/00_core.ipynb 11
+# %% ../nbs/00_core.ipynb 12
 @call_parse
 def search(query: str,              # What to search for 
            meta: str='all',   #"all", "features", or "raw"; specifies the function that fetches the metadata you want to search through
@@ -79,9 +86,9 @@ def search(query: str,              # What to search for
     pd.set_option('display.width', 100)
 
     try:   
-        import finsets
-        metadata = getattr(finsets, f'{meta}_metadata')()
-        results = process.extractBests(query, metadata[field], 
+        #import finsets
+        metadata = pd.read_pickle(METADATA_FILE)  #getattr(finsets, f'{meta}_metadata')()
+        results = process.extractBests(query, metadata[field].dropna().astype('string'), 
                                         scorer = fuzz.token_sort_ratio,
                                         limit=limit)
         rows = [x[2] for x in results]

@@ -15,8 +15,8 @@ from .. import RESOURCES
 
 # %% auto 0
 __all__ = ['PROVIDER', 'URL', 'LIBRARY', 'TABLE', 'FREQ', 'MIN_YEAR', 'MAX_YEAR', 'ENTITY_ID_IN_RAW_DSET',
-           'ENTITY_ID_IN_CLEAN_DSET', 'TIME_VAR_IN_RAW_DSET', 'TIME_VAR_IN_CLEAN_DSET', 'raw_metadata',
-           'raw_metadata_extra', 'download', 'clean']
+           'ENTITY_ID_IN_CLEAN_DSET', 'TIME_VAR_IN_RAW_DSET', 'TIME_VAR_IN_CLEAN_DSET', 'LABELS_FILE', 'raw_metadata',
+           'download', 'clean']
 
 # %% ../../nbs/01_wrds/05_ratios.ipynb 4
 PROVIDER = 'Wharton Research Data Services (WRDS)'
@@ -30,31 +30,17 @@ ENTITY_ID_IN_RAW_DSET = 'permno'
 ENTITY_ID_IN_CLEAN_DSET = 'permno'
 TIME_VAR_IN_RAW_DSET = 'public_date'
 TIME_VAR_IN_CLEAN_DSET = 'Mdate'
+LABELS_FILE = RESOURCES/'finratio_firm_ibes_variable_descriptions.csv'
 
 # %% ../../nbs/01_wrds/05_ratios.ipynb 5
-def raw_metadata(rawfile: str|Path=RESOURCES/'finratio_firm_ibes_variable_descriptions.csv', # location of the raw variable labels file
+def raw_metadata(wrds_username: str=None
              ) -> pd.DataFrame:
-    "Loads raw variable labels file, cleans it and returns it as a pd.DataFrame"
+    "Collects metadata from WRDS `{LIBRARY}.{TABLE}` and merges it with variable labels from LABELS_FILE."
 
-    df = pd.read_csv(rawfile)
-    df['output_of'] = 'wrds.ratios.clean'
-
-    df['Variable Label'] = df.apply(lambda row: row['Description'].replace(row['Variable Name'].strip()+' -- ', ''), axis=1)
-    df['Variable Label'] = df.apply(lambda row: row['Variable Label'].replace( '(' + row['Variable Name'].strip() + ')', ''), axis=1)
-    df['Variable Name'] = df['Variable Name'].str.strip().str.lower()
-    df = df[['Variable Name', 'Variable Label','output_of', 'Type', 'Group']].copy()
-    df.columns = ['name','label','output_of','type', 'group']
-    return df
-
-# %% ../../nbs/01_wrds/05_ratios.ipynb 8
-def raw_metadata_extra(wrds_username: str=None
-             ) -> pd.DataFrame:
-    "Collects metadata from WRDS `{LIBRARY}.{TABLE}` and merges it with `variable_labels`."
-
+    # Get metadata from `{LIBRARY}.{TABLE}`
     if wrds_username is None:
         wrds_username = os.getenv('WRDS_USERNAME')
         if wrds_username is None: wrds_username = input("Enter your WRDS username: ") 
-
     try:
         db = wrds_api.Connection(wrds_username = wrds_username)
         finr = db.describe_table(LIBRARY,TABLE)
@@ -67,16 +53,24 @@ def raw_metadata_extra(wrds_username: str=None
     finr_meta['wrds_library'] = LIBRARY
     finr_meta['wrds_table'] = TABLE
 
-    df = finr_meta.merge(raw_metadata()[['name','label']], how='left', on='name')
-    
-    df['output_of'] = 'wrds.ratios.download()'
+    # Get variable labels from LABELS_FILE
+    df = pd.read_csv(LABELS_FILE)
+    df['Variable Label'] = df.apply(lambda row: row['Description'].replace(row['Variable Name'].strip()+' -- ', ''), axis=1)
+    df['Variable Label'] = df.apply(lambda row: row['Variable Label'].replace( '(' + row['Variable Name'].strip() + ')', ''), axis=1)
+    df['Variable Name'] = df['Variable Name'].str.strip().str.lower()
+    df = df[['Variable Name', 'Variable Label', 'Group']].copy()
+    df.columns = ['name','label','group']
+
+    # Merge metadata with labels and clean up a bit
+    df = finr_meta.merge(df, how='left', on='name')
+    df['output_of'] = 'wrds.ratios.download'
     df = pdm.order_columns(df,these_first=['name','label','output_of'])
     for v in list(df.columns):
         df[v] = df[v].astype('string')
     
     return df
 
-# %% ../../nbs/01_wrds/05_ratios.ipynb 11
+# %% ../../nbs/01_wrds/05_ratios.ipynb 8
 def download(vars: List[str]=None, # If None, downloads all variables
              obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded
              wrds_username: str=None, #If None, looks for WRDS_USERNAME with `os.getenv`, then prompts you if needed
@@ -98,7 +92,7 @@ def download(vars: List[str]=None, # If None, downloads all variables
     return wrds_api.download(sql_string, wrds_username=wrds_username, 
                              params={'start_date':start_date, 'end_date':end_date, 'obs_limit':obs_limit})
 
-# %% ../../nbs/01_wrds/05_ratios.ipynb 15
+# %% ../../nbs/01_wrds/05_ratios.ipynb 12
 def clean(df: pd.DataFrame=None,        # If None, downloads `vars` using `download` function; else, must contain `permno` and `date` columns
           vars: List[str]=None,         # If None, downloads `default_raw_vars`
           obs_limit: int=None,          # Number of rows to download. If None, full dataset will be downloaded

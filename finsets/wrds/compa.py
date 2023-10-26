@@ -14,17 +14,19 @@ from . import wrds_api
 from .. import RESOURCES
 
 # %% auto 0
-__all__ = ['PROVIDER', 'URL', 'LIBRARY', 'TABLE', 'FREQ', 'MIN_YEAR', 'MAX_YEAR', 'ENTITY_ID_IN_RAW_DSET',
-           'ENTITY_ID_IN_CLEAN_DSET', 'TIME_VAR_IN_RAW_DSET', 'TIME_VAR_IN_CLEAN_DSET', 'raw_metadata',
-           'raw_metadata_extra', 'default_raw_vars', 'parse_varlist', 'download', 'clean', 'book_equity', 'tobin_q',
-           'issuance_vars', 'investment_vars', 'profitability_vars', 'cashflow_vars', 'liquidity_vars', 'leverage_vars',
-           'payout_vars']
+__all__ = ['PROVIDER', 'URL', 'LIBRARY', 'TABLE', 'LINK_LIBRARY', 'LINK_TABLE', 'FREQ', 'MIN_YEAR', 'MAX_YEAR',
+           'ENTITY_ID_IN_RAW_DSET', 'ENTITY_ID_IN_CLEAN_DSET', 'TIME_VAR_IN_RAW_DSET', 'TIME_VAR_IN_CLEAN_DSET',
+           'LABELS_FILE', 'raw_metadata', 'default_raw_vars', 'parse_varlist', 'download', 'clean', 'book_equity',
+           'tobin_q', 'issuance_vars', 'investment_vars', 'profitability_vars', 'cashflow_vars', 'liquidity_vars',
+           'leverage_vars', 'payout_vars']
 
 # %% ../../nbs/01_wrds/03_compa.ipynb 3
 PROVIDER = 'Wharton Research Data Services (WRDS)'
 URL = 'https://wrds-www.wharton.upenn.edu/pages/get-data/center-research-security-prices-crsp/annual-update/crspcompustat-merged/fundamentals-annual/'
 LIBRARY = 'comp'
 TABLE = 'funda'
+LINK_LIBRARY = 'crsp'
+LINK_TABLE = 'ccmxpf_lnkhist'
 FREQ = 'Y'
 MIN_YEAR = 1950
 MAX_YEAR = None
@@ -32,27 +34,14 @@ ENTITY_ID_IN_RAW_DSET = 'gvkey'
 ENTITY_ID_IN_CLEAN_DSET = 'permno'
 TIME_VAR_IN_RAW_DSET = 'datadate'
 TIME_VAR_IN_CLEAN_DSET = 'Ydate'
+LABELS_FILE = RESOURCES/'compa_variable_descriptions.csv'
 
 # %% ../../nbs/01_wrds/03_compa.ipynb 4
-def raw_metadata(rawfile: str|Path=RESOURCES/'compa_variable_descriptions.csv', # location of the raw variable labels file
+def raw_metadata(wrds_username: str=None
              ) -> pd.DataFrame:
-    "Loads raw variable labels file, cleans it and returns it as a pd.DataFrame"
+    "Collects metadata from WRDS f`{LIBRARY}.{TABLE}` and merges it variable labels from LABELS_FILE"
 
-    df = pd.read_csv(rawfile)
-    df['output_of'] = 'wrds.compa.clean'
-
-    df['Variable Label'] = df.apply(lambda row: row['Description'].replace(row['Variable Name'].strip()+' -- ', ''), axis=1)
-    df['Variable Label'] = df.apply(lambda row: row['Variable Label'].replace( '(' + row['Variable Name'].strip() + ')', ''), axis=1)
-    df['Variable Name'] = df['Variable Name'].str.strip().str.lower()
-    df = df[['Variable Name', 'Variable Label', 'output_of', 'Type']].copy()
-    df.columns = ['name','label','output_of','type']
-    return df
-
-# %% ../../nbs/01_wrds/03_compa.ipynb 7
-def raw_metadata_extra(wrds_username: str=None
-             ) -> pd.DataFrame:
-    "Collects metadata from WRDS f`{LIBRARY}.{TABLE}` and merges it with `raw_metadata()` table."
-
+    # Get metadata from `{LIBRARY}.{TABLE}`
     if wrds_username is None:
         wrds_username = os.getenv('WRDS_USERNAME')
         if wrds_username is None: wrds_username = input("Enter your WRDS username: ") 
@@ -68,8 +57,16 @@ def raw_metadata_extra(wrds_username: str=None
     meta['LIBRARY'] = LIBRARY
     meta['TABLE'] = TABLE
 
-    meta = meta.merge(raw_metadata()[['name','label']], how='left', on='name')
-    
+    # Get variable labels from LABELS_FILE
+    df = pd.read_csv(LABELS_FILE)
+    df['Variable Label'] = df.apply(lambda row: row['Description'].replace(row['Variable Name'].strip()+' -- ', ''), axis=1)
+    df['Variable Label'] = df.apply(lambda row: row['Variable Label'].replace( '(' + row['Variable Name'].strip() + ')', ''), axis=1)
+    df['Variable Name'] = df['Variable Name'].str.strip().str.lower()
+    df = df[['Variable Name', 'Variable Label']].copy()
+    df.columns = ['name','label']
+
+    # Merge metadata and variable labels and clean up a bit
+    meta = meta.merge(df, how='left', on='name')
     meta['output_of'] = 'wrds.compa.download'
     meta = pdm.order_columns(meta,these_first=['name','label','output_of'])
     for v in list(meta.columns):
@@ -77,7 +74,7 @@ def raw_metadata_extra(wrds_username: str=None
     
     return meta
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 9
+# %% ../../nbs/01_wrds/03_compa.ipynb 6
 def default_raw_vars():
     """Default variables used in `download` if none are specified."""
 
@@ -90,7 +87,7 @@ def default_raw_vars():
             'tstk' ,'wcap' ,'rect' ,'xsga' ,'aqc' ,'oibdp' ,'dpact' ,'fic' ,'ni' ,'ivao' ,'ivst' ,
             'dv' , 'intan' ,'pi' ,'txfo' ,'pifo' ,'xpp' ,'drc' ,'drlt' ,'ap' ,'xacc' ,'itcb']             
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 11
+# %% ../../nbs/01_wrds/03_compa.ipynb 8
 def parse_varlist(vars: List[str]=None, #list of variables requested by user
                   req_vars: List[str] = ['gvkey', 'datadate'], #list of variables that will automatically get downloaded, even if not in `vars`
                   prefix: str='a.', #string to add in front of each variable name when we build the SQL string of variable names
@@ -103,26 +100,26 @@ def parse_varlist(vars: List[str]=None, #list of variables requested by user
     vars =  req_vars + [x for x in vars if x not in req_vars] #in case `vars` already contains some of the required variables
 
     # Validate variables to be downloaded (make sure that they are in the target database)
-    valid_vars = list(raw_metadata_extra().name)
+    valid_vars = list(raw_metadata().name)
     invalid_vars = [v for v in vars if v not in valid_vars]
     if invalid_vars: raise ValueError(f"These vars are not in the database: {invalid_vars}") 
 
     return ','.join([f'{prefix}{var_name}' for var_name in vars])
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 12
+# %% ../../nbs/01_wrds/03_compa.ipynb 9
 def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; else `permno`, `permco`, and `date` are added by default
              obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded
              wrds_username: str=None, #If None, looks for WRDS_USERNAME with `os.getenv`, then prompts you if needed
              start_date: str=None, # Start date in MM/DD/YYYY format
              end_date: str=None #End date in MM/DD/YYYY format
              ) -> pd.DataFrame:
-    """Downloads `vars` from `start_date` to `end_date` from WRDS `comp.funda` library and adds PERMNO and PERMCO as in CCM"""
+    """Downloads `vars` from `start_date` to `end_date` from WRDS `{LIBRARY}.{TABLE}` library and adds PERMNO and PERMCO as in CCM"""
 
     vars = parse_varlist(vars)
 
     sql_string=f"""SELECT b.lpermno as permno, b.lpermco as permco, b.liid as iid, {vars}
                     FROM {LIBRARY}.{TABLE} AS a
-                    INNER JOIN crsp.ccmxpf_lnkhist AS b ON a.gvkey = b.gvkey
+                    INNER JOIN {LINK_LIBRARY}.{LINK_TABLE} AS b ON a.gvkey = b.gvkey
                     WHERE datadate BETWEEN b.linkdt AND COALESCE(b.linkenddt, CURRENT_DATE)
                             AND b.linktype IN ('LU','LC') AND b.linkprim IN ('P','C')
                             AND indfmt='INDL' AND datafmt='STD' AND popsrc='D' AND consol='C'
@@ -134,7 +131,7 @@ def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; else
     return wrds_api.download(sql_string, wrds_username=wrds_username, 
                              params={'start_date':start_date, 'end_date':end_date, 'obs_limit':obs_limit})
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 15
+# %% ../../nbs/01_wrds/03_compa.ipynb 12
 def clean(df: pd.DataFrame=None,        # If None, downloads `vars` using `download` function; else, must contain `permno` and `datadate` columns
           vars: List[str]=None,         # If None, downloads `default_raw_vars`
           obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded
@@ -149,7 +146,7 @@ def clean(df: pd.DataFrame=None,        # If None, downloads `vars` using `downl
     df = pdm.setup_panel(df, panel_ids=ENTITY_ID_IN_CLEAN_DSET, time_var=TIME_VAR_IN_RAW_DSET, freq=FREQ, **clean_kwargs)
     return df 
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 20
+# %% ../../nbs/01_wrds/03_compa.ipynb 17
 def book_equity(df: pd.DataFrame=None, # If None, downloads (and cleans) only required vars
                 add_itcb=False,
                 return_metadata: bool=False # If true, just returns metadata dictionary
@@ -177,7 +174,7 @@ def book_equity(df: pd.DataFrame=None, # If None, downloads (and cleans) only re
     
     return df[metadata['outputs']].copy()
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 27
+# %% ../../nbs/01_wrds/03_compa.ipynb 24
 def tobin_q(df: pd.DataFrame=None,      # If None, downloads (and cleans) only required vars
             return_metadata: bool=False # If True, just returns the metadata dictionary
             ) -> pd.DataFrame:
@@ -199,7 +196,7 @@ def tobin_q(df: pd.DataFrame=None,      # If None, downloads (and cleans) only r
     df = df.replace([np.inf, -np.inf], np.nan)
     return  df[metadata['outputs']].copy()
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 32
+# %% ../../nbs/01_wrds/03_compa.ipynb 29
 def issuance_vars(df: pd.DataFrame=None,        # If None, downloads (and cleans) only required vars
                     return_metadata: bool=False # If True, just returns the metadata dictionary
                     ) -> pd.DataFrame:
@@ -232,7 +229,7 @@ def issuance_vars(df: pd.DataFrame=None,        # If None, downloads (and cleans
     df = df.replace([np.inf, -np.inf], np.nan)
     return df[metadata['outputs']].copy()
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 35
+# %% ../../nbs/01_wrds/03_compa.ipynb 32
 def investment_vars(df: pd.DataFrame=None,      # If None, downloads (and cleans) only required vars
                     return_metadata: bool=False # If True, just returns the metadata dictionary
                     ) -> pd.DataFrame:
@@ -252,7 +249,7 @@ def investment_vars(df: pd.DataFrame=None,      # If None, downloads (and cleans
     df = df.replace([np.inf, -np.inf], np.nan)
     return df[metadata['outputs']].copy()
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 38
+# %% ../../nbs/01_wrds/03_compa.ipynb 35
 def profitability_vars(df: pd.DataFrame=None,      # If None, downloads (and cleans) only required vars
                         return_metadata: bool=False # If True, just returns the metadata dictionary
                         ) -> pd.DataFrame:
@@ -271,7 +268,7 @@ def profitability_vars(df: pd.DataFrame=None,      # If None, downloads (and cle
     df = df.replace([np.inf, -np.inf], np.nan)
     return df[metadata['outputs']].copy()
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 41
+# %% ../../nbs/01_wrds/03_compa.ipynb 38
 def cashflow_vars(df: pd.DataFrame=None,      # If None, downloads (and cleans) only required vars
                         return_metadata: bool=False # If True, just returns the metadata dictionary
                         ) -> pd.DataFrame:
@@ -295,7 +292,7 @@ def cashflow_vars(df: pd.DataFrame=None,      # If None, downloads (and cleans) 
     df = df.replace([np.inf, -np.inf], np.nan)    
     return df[metadata['outputs']].copy()
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 44
+# %% ../../nbs/01_wrds/03_compa.ipynb 41
 def liquidity_vars(df: pd.DataFrame=None,      # If None, downloads (and cleans) only required vars
                         return_metadata: bool=False # If True, just returns the metadata dictionary
                         ) -> pd.DataFrame:
@@ -315,7 +312,7 @@ def liquidity_vars(df: pd.DataFrame=None,      # If None, downloads (and cleans)
     df = df.replace([np.inf, -np.inf], np.nan) 
     return df[metadata['outputs']].copy()
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 47
+# %% ../../nbs/01_wrds/03_compa.ipynb 44
 def leverage_vars(df: pd.DataFrame=None,      # If None, downloads (and cleans) only required vars
                         return_metadata: bool=False # If True, just returns the metadata dictionary
                         ) -> pd.DataFrame:
@@ -337,7 +334,7 @@ def leverage_vars(df: pd.DataFrame=None,      # If None, downloads (and cleans) 
     df = df.replace([np.inf, -np.inf], np.nan)         
     return df[metadata['outputs']].copy()
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 50
+# %% ../../nbs/01_wrds/03_compa.ipynb 47
 def payout_vars(df: pd.DataFrame=None,      # If None, downloads (and cleans) only required vars
                         return_metadata: bool=False # If True, just returns the metadata dictionary
                         ) -> pd.DataFrame:

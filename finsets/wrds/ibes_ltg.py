@@ -16,7 +16,7 @@ from .. import RESOURCES
 # %% auto 0
 __all__ = ['PROVIDER', 'URL', 'LIBRARY', 'TABLE', 'LINK_LIBRARY', 'LINK_TABLE', 'FREQ', 'MIN_YEAR', 'MAX_YEAR',
            'ENTITY_ID_IN_RAW_DSET', 'ENTITY_ID_IN_CLEAN_DSET', 'TIME_VAR_IN_RAW_DSET', 'TIME_VAR_IN_CLEAN_DSET',
-           'raw_metadata', 'raw_metadata_extra', 'default_raw_vars', 'parse_varlist', 'download']
+           'LABELS_FILE', 'raw_metadata', 'default_raw_vars', 'parse_varlist', 'download']
 
 # %% ../../nbs/01_wrds/06_ibes_ltg.ipynb 4
 PROVIDER = 'Refinitiv via WRDS'
@@ -32,27 +32,14 @@ ENTITY_ID_IN_RAW_DSET = 'permno'
 ENTITY_ID_IN_CLEAN_DSET = 'permno'
 TIME_VAR_IN_RAW_DSET = 'date'
 TIME_VAR_IN_CLEAN_DSET = 'Mdate'
+LABELS_FILE = RESOURCES/'ibes_detu_epsus_variable_descriptions.csv'
 
 # %% ../../nbs/01_wrds/06_ibes_ltg.ipynb 5
-def raw_metadata(rawfile: str|Path=RESOURCES/'ibes_detu_epsus_variable_descriptions.csv', # location of the raw variable labels file
+def raw_metadata(wrds_username: str=None
              ) -> pd.DataFrame:
-    "Loads raw variable labels file, cleans it and returns it as a pd.DataFrame"
+    "Collects metadata from WRDS `{LIBRARY}.{TABLE}` table and merges it with variable labels from LABELS_FILE"
 
-    df = pd.read_csv(rawfile)
-    df['output_of'] = 'wrds.ibes_ltg.clean'
-
-    df['Variable Label'] = df.apply(lambda row: row['Description'].replace(row['Variable Name'].strip()+' -- ', ''), axis=1)
-    df['Variable Label'] = df.apply(lambda row: row['Variable Label'].replace( '(' + row['Variable Name'].strip() + ')', ''), axis=1)
-    df['Variable Name'] = df['Variable Name'].str.strip().str.lower()
-    df = df[['Variable Name', 'Variable Label', 'output_of', 'Type']].copy()
-    df.columns = ['name','label','output_of','type']
-    return df
-
-# %% ../../nbs/01_wrds/06_ibes_ltg.ipynb 7
-def raw_metadata_extra(wrds_username: str=None
-             ) -> pd.DataFrame:
-    "Collects metadata from WRDS `{LIBRARY}.{TABLE}` table and merges it with `raw_metadata()`."
-
+    # Get metadata from `{LIBRARY}.{TABLE}`
     if wrds_username is None:
         wrds_username = os.getenv('WRDS_USERNAME')
         if wrds_username is None: wrds_username = input("Enter your WRDS username: ") 
@@ -69,8 +56,16 @@ def raw_metadata_extra(wrds_username: str=None
     meta['wrds_library'] = LIBRARY
     meta['wrds_table'] = TABLE
 
-    meta = meta.merge(raw_metadata()[['name','label']], how='left', on='name')
+    # Get variable labels from LABELS_FILE
+    df = pd.read_csv(LABELS_FILE)
+    df['Variable Label'] = df.apply(lambda row: row['Description'].replace(row['Variable Name'].strip()+' -- ', ''), axis=1)
+    df['Variable Label'] = df.apply(lambda row: row['Variable Label'].replace( '(' + row['Variable Name'].strip() + ')', ''), axis=1)
+    df['Variable Name'] = df['Variable Name'].str.strip().str.lower()
+    df = df[['Variable Name', 'Variable Label']].copy()
+    df.columns = ['name','label']
     
+    # Merge metadata and variable labels and clean up a bit
+    meta = meta.merge(df, how='left', on='name')
     meta['output_of'] = 'wrds.ibes_ltg.download'
     meta = pdm.order_columns(meta,these_first=['name','label','output_of'])
     for v in list(meta.columns):
@@ -78,11 +73,11 @@ def raw_metadata_extra(wrds_username: str=None
     
     return meta
 
-# %% ../../nbs/01_wrds/06_ibes_ltg.ipynb 9
+# %% ../../nbs/01_wrds/06_ibes_ltg.ipynb 7
 def default_raw_vars():
     return ['ticker', 'value', 'fpi', 'anndats', 'fpedats', 'revdats', 'actdats', 'estimator', 'analys', 'pdf']
 
-# %% ../../nbs/01_wrds/06_ibes_ltg.ipynb 10
+# %% ../../nbs/01_wrds/06_ibes_ltg.ipynb 8
 def parse_varlist(vars: List[str]=None, #list of variables requested by user
                   req_vars: List[str] = ['ticker', 'anndats'], #list of variables that will automatically get downloaded, even if not in `vars`
                   prefix: str='a.', #string to add in front of each variable name when we build the SQL string of variable names
@@ -95,13 +90,13 @@ def parse_varlist(vars: List[str]=None, #list of variables requested by user
     vars =  req_vars + [x for x in vars if x not in req_vars] #in case `vars` already contains some of the required variables
 
     # Validate variables to be downloaded (make sure that they are in the target database)
-    valid_vars = list(raw_metadata_extra().name)
+    valid_vars = list(raw_metadata().name)
     invalid_vars = [v for v in vars if v not in valid_vars]
     if invalid_vars: raise ValueError(f"These vars are not in the database: {invalid_vars}") 
 
     return ','.join([f'{prefix}{var_name}' for var_name in vars])
 
-# %% ../../nbs/01_wrds/06_ibes_ltg.ipynb 11
+# %% ../../nbs/01_wrds/06_ibes_ltg.ipynb 9
 def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; `permno`, `ticker`, and `anndats` added by default
              obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded
              wrds_username: str=None, #If None, looks for WRDS_USERNAME with `os.getenv`, then prompts you if needed
