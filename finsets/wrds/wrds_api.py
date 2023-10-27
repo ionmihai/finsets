@@ -662,7 +662,7 @@ ORDER BY 1;
             )
 
 
-# %% ../../nbs/01_wrds/00_wrds_api.ipynb 6
+# %% ../../nbs/01_wrds/00_wrds_api.ipynb 7
 def download(sql_string: str=None,
              wrds_username: str=None, #If None, looks for WRDS_USERNAME with `os.getenv`; prompts you if it can't find it
              params: Sequence=None # Params cited in the `sql_string`
@@ -672,10 +672,6 @@ def download(sql_string: str=None,
     if wrds_username is None:
         wrds_username = os.getenv('WRDS_USERNAME')
         if wrds_username is None: wrds_username = input("Enter your WRDS username: ") 
-
-    #The context manager does not seem to close connections properly
-    #with Connection(wrds_username = wrds_username) as db:
-    #    df = db.raw_sql(sql=sql_string, params=params)
 
     try:
         db = Connection(wrds_username=os.getenv('WRDS_USERNAME'))

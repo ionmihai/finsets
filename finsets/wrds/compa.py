@@ -54,8 +54,8 @@ def raw_metadata(wrds_username: str=None
 
     meta = funda[['name','type']].copy()
     meta['nr_rows'] = nr_rows
-    meta['LIBRARY'] = LIBRARY
-    meta['TABLE'] = TABLE
+    meta['wrds_library'] = LIBRARY
+    meta['wrds_table'] = TABLE
 
     # Get variable labels from LABELS_FILE
     df = pd.read_csv(LABELS_FILE)

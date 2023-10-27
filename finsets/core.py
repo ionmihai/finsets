@@ -14,12 +14,26 @@ from fastcore.script import call_parse
 from . import RESOURCES
 
 # %% auto 0
-__all__ = ['METADATA_FILE', 'features_metadata', 'raw_metadata', 'all_metadata', 'search']
+__all__ = ['METADATA_ALL', 'METADATA_RAW', 'METADATA_FEATURES', 'list_datasets', 'features_metadata', 'raw_metadata',
+           'all_metadata', 'search']
 
 # %% ../nbs/00_core.ipynb 5
-METADATA_FILE = RESOURCES/'all_metadata.pkl'
+METADATA_ALL = RESOURCES/'all_metadata.pkl'
+METADATA_RAW = RESOURCES/'all_metadata.pkl'
+METADATA_FEATURES = RESOURCES/'all_metadata.pkl'
 
 # %% ../nbs/00_core.ipynb 6
+def list_datasets(submodules: list=['wrds', 'papers'] # list of submodules to collect metadata from
+                      ) -> pd.DataFrame:
+    "Go through `submodules` of `finsets` and print their names out"
+    
+    for name in submodules:
+        module = import_module(f'finsets.{name}')
+        for sub in dir(module):
+            if sub.startswith('_'): continue
+            print(f'{name}.{sub}')
+
+# %% ../nbs/00_core.ipynb 8
 def features_metadata(submodules: list=['wrds', 'papers'] # list of submodules to collect metadata from
                       ) -> pd.DataFrame:
     "Go through `submodules` of `finsets` and collect metadata from all functions that have `return_metadata` parameter"
@@ -49,7 +63,7 @@ def features_metadata(submodules: list=['wrds', 'papers'] # list of submodules t
                                 df = pd.concat([df,new_meta],ignore_index=True)
     return df
 
-# %% ../nbs/00_core.ipynb 8
+# %% ../nbs/00_core.ipynb 10
 def raw_metadata(submodules=['wrds', 'papers'] # list of submodules to collect metadata from
                 ) -> pd.DataFrame:
     "Go through `submodules` of `finsets` and collect metadata from `raw_metadata` functions (if present)"
@@ -64,7 +78,7 @@ def raw_metadata(submodules=['wrds', 'papers'] # list of submodules to collect m
                 df = pd.concat([df,submodule.raw_metadata()],ignore_index=True)
     return df
 
-# %% ../nbs/00_core.ipynb 10
+# %% ../nbs/00_core.ipynb 12
 def all_metadata(submodules=['wrds', 'papers'] # list of submodules to collect metadata from
                 ) -> pd.DataFrame:
     "Collects `raw_metadata` and `features_metadata` from `submodules` of `finsets`"
@@ -73,7 +87,7 @@ def all_metadata(submodules=['wrds', 'papers'] # list of submodules to collect m
     df.to_pickle(METADATA_FILE)
     return df 
 
-# %% ../nbs/00_core.ipynb 12
+# %% ../nbs/00_core.ipynb 14
 @call_parse
 def search(query: str,              # What to search for 
            meta: str='all',   #"all", "features", or "raw"; specifies the function that fetches the metadata you want to search through
