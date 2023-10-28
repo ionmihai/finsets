@@ -42,7 +42,7 @@ import finsets as fds
 or
 
 ``` python
-from finsets import fred, wrds, papers
+from finsets import fred, wrds, papers, metadata
 ```
 
 Below, we very briefly describe each submodule. For more details, please
@@ -57,7 +57,7 @@ The functions in this model are available directly in the `finsets`
 namespace. For example:
 
 ``` python
-fds.features_metadata().head()
+metadata.features_metadata().head()
 ```
 
 <div>
@@ -74,19 +74,20 @@ fds.features_metadata().head()
 </div>
 
 ``` python
-fds.search('total assets').head()
+metadata.search('total assets').head()
 ```
 
 <div>
 
 
-|     | name          | label                                 | output_of                  | inputs                | inputs_generated_by | type   |
-|-----|---------------|---------------------------------------|----------------------------|-----------------------|---------------------|--------|
-| 110 | at            | Assets - Total                        | wrds.compa.clean           | NaN                   | NaN                 | double |
-| 10  | capx2la       | CAPX to lagged assets                 | wrds.compa.investment_vars | ppent,capx,at         | wrds.compa.clean    | NaN    |
-| 12  | cflow2la_is   | Operating cash flows to lagged assets | wrds.compa.cashflow_vars   | dtdate,oancf,ib,dp,at | wrds.compa.clean    | NaN    |
-| 13  | cflow2la_cfs  | Operating cash flows to lagged assets | wrds.compa.cashflow_vars   | dtdate,oancf,ib,dp,at | wrds.compa.clean    | NaN    |
-| 14  | cflow2la_full | Operating cash flows to lagged assets | wrds.compa.cashflow_vars   | dtdate,oancf,ib,dp,at | wrds.compa.clean    | NaN    |
+|       | NAME | LABEL                    | OUTPUT_OF           | INPUTS | INPUTS_GENERATED_BY | TYPE             | NR_ROWS | WRDS_LIBRARY | WRDS_TABLE | GROUP  |
+|-------|------|--------------------------|---------------------|--------|---------------------|------------------|---------|--------------|------------|--------|
+| SCORE |      |                          |                     |        |                     |                  |         |              |            |        |
+| 100   | at   | Assets - Total           | wrds.compa.download | NaN    | NaN                 | DOUBLE_PRECISION | 881760  | comp         | funda      | \<NA\> |
+| 75    | act  | Current Assets - Total   | wrds.compa.download | NaN    | NaN                 | DOUBLE_PRECISION | 881760  | comp         | funda      | \<NA\> |
+| 75    | ao   | Assets - Other           | wrds.compa.download | NaN    | NaN                 | DOUBLE_PRECISION | 881760  | comp         | funda      | \<NA\> |
+| 71    | batr | Benefits Assumed - Total | wrds.compa.download | NaN    | NaN                 | DOUBLE_PRECISION | 881760  | comp         | funda      | \<NA\> |
+| 69    | dptb | Deposits - Total - Banks | wrds.compa.download | NaN    | NaN                 | DOUBLE_PRECISION | 881760  | comp         | funda      | \<NA\> |
 
 </div>
 
@@ -110,8 +111,6 @@ from finsets.wrds import wrds_api
 db = wrds_api.Connection()
 ```
 
-    WRDS recommends setting up a .pgpass file.
-    You can create this file yourself at any time with the create_pgpass_file() function.
     Loading library list...
     Done
 
@@ -171,11 +170,11 @@ fred.clean('GDP', label='Nominal GDP').tail()
 |        | dtdate     | Nominal GDP |
 |--------|------------|-------------|
 | Qdate  |            |             |
-| 2022Q1 | 2022-01-01 | 24740.480   |
-| 2022Q2 | 2022-04-01 | 25248.476   |
-| 2022Q3 | 2022-07-01 | 25723.941   |
-| 2022Q4 | 2022-10-01 | 26137.992   |
-| 2023Q1 | 2023-01-01 | 26529.774   |
+| 2022Q3 | 2022-07-01 | 25994.639   |
+| 2022Q4 | 2022-10-01 | 26408.405   |
+| 2023Q1 | 2023-01-01 | 26813.601   |
+| 2023Q2 | 2023-04-01 | 27063.012   |
+| 2023Q3 | 2023-07-01 | 27623.543   |
 
 </div>
 

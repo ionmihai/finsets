@@ -67,7 +67,7 @@ class Connection(object):
         self._verbose = verbose
         self._password = os.getenv("WRDS_PASS","") # MION: originally this was self._password = ""
         # If user passed in any of these parameters, override defaults.
-        self._username = kwargs.get("wrds_username", "")
+        self._username = kwargs.get("wrds_username", os.getenv("WRDS_USERNAME", ""))
         # PGHOST if set will override default for first attempt
         self._hostname = kwargs.get(
             "wrds_hostname", os.environ.get('PGHOST', WRDS_POSTGRES_HOST)

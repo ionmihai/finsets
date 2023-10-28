@@ -23,8 +23,12 @@ website:
     contents:
       - text: "Getting Started"
         href: index.ipynb
-      - text: "Core functions"
-        href: 00_core.ipynb
+      - text: "Metadata"
+        href: 00_metadata.ipynb
+      - text: "Storage"
+        href: 01_storage.ipynb
+      - text: "Dataloader"
+        href: 02_dataloader.ipynb
       - section: FRED
         contents: 00_fred/*
       - section: WRDS
