@@ -23,9 +23,9 @@ def download(series: str=None, # FRED series name
 
 # %% ../../nbs/00_fred/00_fred.ipynb 7
 def clean(series: str=None, # FRED series name
-               label: str=None, # Name you want to give to the series in the output DataFrame. If None, use lowercase of `series`
-               api_key: str=None # FRED api key. If None, will use os.getenv("FRED_API_KEY")
-               ) -> pd.DataFrame: 
+        label: str=None, # Name you want to give to the series in the output DataFrame. If None, use lowercase of `series`
+        api_key: str=None # FRED api key. If None, will use os.getenv("FRED_API_KEY")
+        ) -> pd.DataFrame: 
     """Retrieves series from FRED, cleans the date and sets it as index"""
 
     if api_key is None: api_key = os.getenv("FRED_API_KEY")
