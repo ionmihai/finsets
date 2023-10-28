@@ -35,17 +35,11 @@ TIME_VAR_IN_CLEAN_DSET = 'Mdate'
 LABELS_FILE = RESOURCES/'ibes_detu_epsus_variable_descriptions.csv'
 
 # %% ../../nbs/01_wrds/06_ibes_ltg.ipynb 5
-def raw_metadata(wrds_username: str=None
-             ) -> pd.DataFrame:
+def raw_metadata() -> pd.DataFrame:
     "Collects metadata from WRDS `{LIBRARY}.{TABLE}` table and merges it with variable labels from LABELS_FILE"
 
-    # Get metadata from `{LIBRARY}.{TABLE}`
-    if wrds_username is None:
-        wrds_username = os.getenv('WRDS_USERNAME')
-        if wrds_username is None: wrds_username = input("Enter your WRDS username: ") 
-
     try:
-        db = wrds_api.Connection(wrds_username = wrds_username)
+        db = wrds_api.Connection()
         funda = db.describe_table(LIBRARY,TABLE)
         nr_rows = db.get_row_count(LIBRARY,TABLE)
     finally:
@@ -99,7 +93,6 @@ def parse_varlist(vars: List[str]=None, #list of variables requested by user
 # %% ../../nbs/01_wrds/06_ibes_ltg.ipynb 9
 def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; `permno`, `ticker`, and `anndats` added by default
              obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded
-             wrds_username: str=None, #If None, looks for WRDS_USERNAME with `os.getenv`, then prompts you if needed
              start_date: str=None, # Start date in MM/DD/YYYY format
              end_date: str=None, #End date in MM/DD/YYYY format; if None, defaults to current date
              permno_match_score: tuple=(1,), #accuracy of permno-ibes link. 1-6. 1 is best. use >1 with caution.
@@ -120,6 +113,6 @@ def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; `per
     if end_date is not None: sql_string += r" AND anndats <= %(end_date)s"
     if obs_limit is not None: sql_string += r" LIMIT %(obs_limit)s"
 
-    return wrds_api.download(sql_string, wrds_username=wrds_username, 
+    return wrds_api.download(sql_string,
                              params={'permno_match_score': permno_match_score,
                                  'start_date':start_date, 'end_date':end_date, 'obs_limit':obs_limit})

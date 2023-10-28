@@ -80,7 +80,7 @@ class Connection(object):
             self.connect()
             self.load_library_list()
 
-    def __make_sa_engine_conn(self, raise_err=True):  #MION changed raise_err default to True
+    def __make_sa_engine_conn(self, raise_err=False):  #MION changed raise_err default to True
         username = self._username
         hostname = self._hostname
         password = urllib.parse.quote_plus(self._password)
@@ -664,17 +664,12 @@ ORDER BY 1;
 
 # %% ../../nbs/01_wrds/00_wrds_api.ipynb 7
 def download(sql_string: str=None,
-             wrds_username: str=None, #If None, looks for WRDS_USERNAME with `os.getenv`; prompts you if it can't find it
              params: Sequence=None # Params cited in the `sql_string`
              ) -> pd.DataFrame:
     """Downloads data from WRDS using the given PostgreSQL `sql_string`"""
 
-    if wrds_username is None:
-        wrds_username = os.getenv('WRDS_USERNAME')
-        if wrds_username is None: wrds_username = input("Enter your WRDS username: ") 
-
     try:
-        db = Connection(wrds_username=os.getenv('WRDS_USERNAME'))
+        db = Connection()
         df = db.raw_sql(sql=sql_string, params=params)
     except Exception as err:
         raise err 

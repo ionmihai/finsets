@@ -10,8 +10,7 @@ import pandasmore as pdm
 from . import wrds_api
 
 # %% ../../nbs/01_wrds/linking.ipynb 6
-def gvkey_permno_m(wrds_username: str=None,
-                   obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded
+def gvkey_permno_m(obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded
                    ) -> pd.DataFrame:
     """CRSP Monthly ids, with gvkeys"""
 
@@ -26,15 +25,14 @@ def gvkey_permno_m(wrds_username: str=None,
                     {limit_clause}                                   
                 """
     
-    df = wrds_api.download(sql_string, wrds_username)
+    df = wrds_api.download(sql_string)
     df = pdm.setup_panel(df, panel_ids='permno', time_var='date', freq='M',
                          drop_index_duplicates=True, duplicates_which_keep='last')
     df['gvkey'] = df['gvkey'].astype('string')
     return df.reset_index()[['permno','Mdate','gvkey']].copy()  
 
 # %% ../../nbs/01_wrds/linking.ipynb 9
-def gvkey_permno_a(wrds_username: str=None,
-                   obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded
+def gvkey_permno_a(obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded
                    ) -> pd.DataFrame:
     """qvkey to permno correspondence at the annual frequency. As done by CCM."""
 
@@ -48,15 +46,14 @@ def gvkey_permno_a(wrds_username: str=None,
                     {limit_clause}            
                 """
     
-    df = wrds_api.download(sql_string, wrds_username)
+    df = wrds_api.download(sql_string)
     df = pdm.setup_panel(df, panel_ids='permno', time_var='datadate', freq='A',
                          drop_index_duplicates=True, duplicates_which_keep='last')
     df['gvkey'] = df['gvkey'].astype('string')
     return df.reset_index()[['permno','Adate','gvkey']].copy()  
 
 # %% ../../nbs/01_wrds/linking.ipynb 12
-def gvkey_permno_q(wrds_username: str=None,
-                   obs_limit : int=None, #Number of rows to download. If None, full dataset will be downloaded
+def gvkey_permno_q(obs_limit : int=None, #Number of rows to download. If None, full dataset will be downloaded
                    ) -> pd.DataFrame:
     """qvkey to permno correspondence at the quarterly frequency. As done by CCM."""
     
@@ -70,7 +67,7 @@ def gvkey_permno_q(wrds_username: str=None,
                     {limit_clause}
                 """
     
-    df = wrds_api.download(sql_string, wrds_username)
+    df = wrds_api.download(sql_string)
     df = pdm.setup_panel(df, panel_ids='permno', time_var='datadate', freq='Q',
                          drop_index_duplicates=True, duplicates_which_keep='last')
     df['gvkey'] = df['gvkey'].astype('string')

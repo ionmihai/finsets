@@ -35,16 +35,11 @@ TIME_VAR_IN_CLEAN_DSET = 'Mdate'
 LABELS_FILE = RESOURCES/'crspm_variable_descriptions.csv'
 
 # %% ../../nbs/01_wrds/01_crspm.ipynb 5
-def raw_metadata(wrds_username: str=None
-             ) -> pd.DataFrame:
+def raw_metadata() -> pd.DataFrame:
     "Collects metadata from WRDS `{LIBRARY}.{TABLE}` and `{LIBRARY}.{NAMES_TABLE}` tables and merges it with variable labels from LABELS_FILE"
 
-    # Get metadata from `{LIBRARY}.{TABLE}`
-    if wrds_username is None:
-        wrds_username = os.getenv('WRDS_USERNAME')
-        if wrds_username is None: wrds_username = input("Enter your WRDS username: ") 
     try:
-        db = wrds_api.Connection(wrds_username = wrds_username)
+        db = wrds_api.Connection()
         msf = db.describe_table(LIBRARY,TABLE)
         msf_rows = db.get_row_count(LIBRARY,TABLE)
         mse = db.describe_table(LIBRARY,NAMES_TABLE)
@@ -90,14 +85,9 @@ def default_raw_vars():
 
 # %% ../../nbs/01_wrds/01_crspm.ipynb 9
 def parse_varlist(vars: List[str]=None,
-                  wrds_username: str=None,
                   add_delist_adj_ret: str=None
                   ) -> str:
     """Figure out which `vars` come from the `{LIBRARY}.{TABLE}` table and which come from the `{LIBRARY}.{NAMES_TABLE}` table and add a. and b. prefixes"""
-
-    if wrds_username is None:
-        wrds_username = os.getenv('WRDS_USERNAME')
-        if wrds_username is None: wrds_username = input("Enter your WRDS username: ") 
 
     if vars is None: vars = default_raw_vars()
     adj_vars = ['ret','dlret','dlstcd'] if add_delist_adj_ret else []
@@ -105,7 +95,7 @@ def parse_varlist(vars: List[str]=None,
     vars =  req_vars + [x for x in vars if x not in req_vars]
 
     try:
-        db = wrds_api.Connection(wrds_username = wrds_username)
+        db = wrds_api.Connection()
         all_msf_vars = list(db.describe_table(LIBRARY,TABLE).name)
         all_mse_vars = list(db.describe_table(LIBRARY,NAMES_TABLE).name)
         my_msf_vars = [f'a.{x}' for x in vars if x in all_msf_vars]
@@ -136,7 +126,6 @@ def delist_adj_ret(df: pd.DataFrame, # Requires `ret`,`exchcd`, ` `dlret`, and `
 # %% ../../nbs/01_wrds/01_crspm.ipynb 11
 def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; `permno`, `permco`, `date`, and 'exchcd' are added by default
              obs_limit: int=None,  #Number of rows to download. If None, full dataset will be downloaded             
-             wrds_username: str=None,       #If None, looks for WRDS_USERNAME with `os.getenv`, then prompts you if needed
              start_date: str=None,          # Start date in MM/DD/YYYY format
              end_date: str=None,            # End date in MM/DD/YYYY format  
              add_delist_adj_ret: bool=True, # Whether to calculate delisting-adjusted returns 
@@ -145,7 +134,7 @@ def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; `per
     """Downloads `vars` from `start_date` to `end_date` from WRDS {LIBRARY}.{TABLE} and {LIBRARY}.{NAMES_TABLE} datasets. 
         Creates `ret_adj` for delisting based on Shumway and Warther (1999) and Johnson and Zhao (2007)"""
 
-    varlist_string = parse_varlist(vars, wrds_username, add_delist_adj_ret=add_delist_adj_ret)
+    varlist_string = parse_varlist(vars, add_delist_adj_ret=add_delist_adj_ret)
     sql_string = f"""SELECT {varlist_string},  c.dlstcd, c.dlret 
                         FROM {LIBRARY}.{TABLE} AS a 
                         LEFT JOIN {LIBRARY}.{NAMES_TABLE} AS b
@@ -157,7 +146,7 @@ def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; `per
     if end_date is not None: sql_string += r" AND date <= %(end_date)s"
     if obs_limit is not None: sql_string += r" LIMIT %(obs_limit)s"
 
-    df = wrds_api.download(sql_string, wrds_username=wrds_username, 
+    df = wrds_api.download(sql_string,
                              params={'start_date':start_date, 'end_date':end_date, 'obs_limit':obs_limit})
     
     if add_delist_adj_ret: df = delist_adj_ret(df, adj_ret_var)
@@ -168,13 +157,12 @@ def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; `per
 def clean(df: pd.DataFrame=None,        # If None, downloads `vars` using `download` function; else, must contain `permno` and `date` columns
           vars: List[str]=None,         # If None, downloads `default_raw_vars`
           obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded
-          wrds_username: str=None,      # If None, looks for WRDS_USERNAME with `os.getenv`, then prompts you if needed
           start_date: str="01/01/1900", # Start date in MM/DD/YYYY format
           end_date: str=None,           # End date. Default is current date          
           clean_kwargs: dict={},        # Params to pass to `pdm.setup_panel` other than `panel_ids`, `time_var`, and `freq`
           ) -> pd.DataFrame:
     """Applies `pandasmore.setup_panel` to `df`. If `df` is None, downloads `vars` using `download` function."""
 
-    if df is None: df = download(vars=vars, obs_limit=obs_limit, wrds_username=wrds_username, start_date=start_date, end_date=end_date)
+    if df is None: df = download(vars=vars, obs_limit=obs_limit, start_date=start_date, end_date=end_date)
     df = pdm.setup_panel(df, panel_ids=ENTITY_ID_IN_RAW_DSET, time_var=TIME_VAR_IN_RAW_DSET, freq=FREQ, **clean_kwargs)
     return df 

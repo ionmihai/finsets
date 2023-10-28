@@ -37,16 +37,11 @@ TIME_VAR_IN_CLEAN_DSET = 'Ydate'
 LABELS_FILE = RESOURCES/'compa_variable_descriptions.csv'
 
 # %% ../../nbs/01_wrds/03_compa.ipynb 4
-def raw_metadata(wrds_username: str=None
-             ) -> pd.DataFrame:
+def raw_metadata() -> pd.DataFrame:
     "Collects metadata from WRDS f`{LIBRARY}.{TABLE}` and merges it variable labels from LABELS_FILE"
 
-    # Get metadata from `{LIBRARY}.{TABLE}`
-    if wrds_username is None:
-        wrds_username = os.getenv('WRDS_USERNAME')
-        if wrds_username is None: wrds_username = input("Enter your WRDS username: ") 
     try:
-        db = wrds_api.Connection(wrds_username = wrds_username)
+        db = wrds_api.Connection()
         funda = db.describe_table(LIBRARY,TABLE)
         nr_rows = db.get_row_count(LIBRARY,TABLE)
     finally:
@@ -109,7 +104,6 @@ def parse_varlist(vars: List[str]=None, #list of variables requested by user
 # %% ../../nbs/01_wrds/03_compa.ipynb 9
 def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; else `permno`, `permco`, and `date` are added by default
              obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded
-             wrds_username: str=None, #If None, looks for WRDS_USERNAME with `os.getenv`, then prompts you if needed
              start_date: str=None, # Start date in MM/DD/YYYY format
              end_date: str=None #End date in MM/DD/YYYY format
              ) -> pd.DataFrame:
@@ -128,21 +122,20 @@ def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; else
     if end_date is not None: sql_string += r" AND datadate <= %(end_date)s"
     if obs_limit is not None: sql_string += r" LIMIT %(obs_limit)s"
 
-    return wrds_api.download(sql_string, wrds_username=wrds_username, 
+    return wrds_api.download(sql_string,
                              params={'start_date':start_date, 'end_date':end_date, 'obs_limit':obs_limit})
 
 # %% ../../nbs/01_wrds/03_compa.ipynb 12
 def clean(df: pd.DataFrame=None,        # If None, downloads `vars` using `download` function; else, must contain `permno` and `datadate` columns
           vars: List[str]=None,         # If None, downloads `default_raw_vars`
           obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded
-          wrds_username: str=None,      # If None, looks for WRDS_USERNAME with `os.getenv`, then prompts you if needed
           start_date: str="01/01/1900", # Start date in MM/DD/YYYY format
           end_date: str=None,           # End date. Default is current date          
           clean_kwargs: dict={},        # Params to pass to `pdm.setup_panel` other than `panel_ids`, `time_var`, and `freq`
           ) -> pd.DataFrame:
     """Applies `pandasmore.setup_panel` to `df`. If `df` is None, downloads `vars` using `download` function."""
 
-    if df is None: df = download(vars=vars, obs_limit=obs_limit,  wrds_username=wrds_username, start_date=start_date, end_date=end_date)
+    if df is None: df = download(vars=vars, obs_limit=obs_limit, start_date=start_date, end_date=end_date)
     df = pdm.setup_panel(df, panel_ids=ENTITY_ID_IN_CLEAN_DSET, time_var=TIME_VAR_IN_RAW_DSET, freq=FREQ, **clean_kwargs)
     return df 
 
