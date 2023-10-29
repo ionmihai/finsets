@@ -83,31 +83,36 @@ def default_raw_vars():
             'ret', 'retx', 'shrout', 'prc', 
             'shrcd', 'exchcd','siccd','ticker','cusip','ncusip']            
 
-# %% ../../nbs/01_wrds/01_crspm.ipynb 9
+# %% ../../nbs/01_wrds/01_crspm.ipynb 10
 def parse_varlist(vars: List[str]=None,
+                  required_vars = ['permno','permco','date'],
                   add_delist_adj_ret: str=None
                   ) -> str:
     """Figure out which `vars` come from the `{LIBRARY}.{TABLE}` table and which come from the `{LIBRARY}.{NAMES_TABLE}` table and add a. and b. prefixes"""
 
     if vars is None: vars = default_raw_vars()
-    adj_vars = ['ret','dlret','dlstcd'] if add_delist_adj_ret else []
-    req_vars = ['permno','permco','date','exchcd'] + adj_vars
-    vars =  req_vars + [x for x in vars if x not in req_vars]
+    adj_vars = ['ret','exchcd','dlret','dlstcd','dlstdt'] if add_delist_adj_ret else []
+    req_vars = required_vars + [x for x in adj_vars if x not in required_vars]
+    all_vars =  req_vars + [x for x in list(set(vars)) if x not in req_vars]
 
     try:
         db = wrds_api.Connection()
         all_msf_vars = list(db.describe_table(LIBRARY,TABLE).name)
         all_mse_vars = list(db.describe_table(LIBRARY,NAMES_TABLE).name)
-        my_msf_vars = [f'a.{x}' for x in vars if x in all_msf_vars]
-        my_mse_vars = [f'b.{x}' for x in vars if (x in all_mse_vars) and (x not in all_msf_vars)]
-        varlist_string = ','.join(my_msf_vars + my_mse_vars)
+        all_delist_vars = list(db.describe_table(LIBRARY,DELIST_TABLE).name) if add_delist_adj_ret else []
+        my_msf_vars = [f'a.{x}' for x in all_vars if x in all_msf_vars]
+        my_mse_vars = [f'b.{x}' for x in all_vars if (x in all_mse_vars) 
+                                                        and (x not in all_msf_vars)]
+        my_delist_vars = [f'c.{x}' for x in all_vars if (x in all_delist_vars) 
+                                                        and (x not in all_mse_vars) and (x not in all_msf_vars)]
+        varlist_string = ','.join(my_msf_vars + my_mse_vars + my_delist_vars)
     finally:
         db.close()
         
     return varlist_string
 
-# %% ../../nbs/01_wrds/01_crspm.ipynb 10
-def delist_adj_ret(df: pd.DataFrame, # Requires `ret`,`exchcd`, ` `dlret`, and `dlstcd` variables
+# %% ../../nbs/01_wrds/01_crspm.ipynb 11
+def delist_adj_ret(df: pd.DataFrame, # Requires `ret`,`exchcd`, `dlret`, and `dlstcd` variables
                        adj_ret_var: str
                        ) -> pd.DataFrame:
     """Adjust for delisting returns using Shumway and Warther (1999) and Johnson and Zhao (2007)"""
@@ -123,25 +128,27 @@ def delist_adj_ret(df: pd.DataFrame, # Requires `ret`,`exchcd`, ` `dlret`, and `
     df = df.drop('npdelist', axis=1) 
     return df
 
-# %% ../../nbs/01_wrds/01_crspm.ipynb 11
-def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; `permno`, `permco`, `date`, and 'exchcd' are added by default
+# %% ../../nbs/01_wrds/01_crspm.ipynb 12
+def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; `permno`, `permco`, `date` are added by default
              obs_limit: int=None,  #Number of rows to download. If None, full dataset will be downloaded             
              start_date: str=None,          # Start date in MM/DD/YYYY format
              end_date: str=None,            # End date in MM/DD/YYYY format  
-             add_delist_adj_ret: bool=True, # Whether to calculate delisting-adjusted returns 
+             add_delist_adj_ret: bool=False, # Whether to calculate delisting-adjusted returns 
              adj_ret_var: str='ret_adj'     # What to call the returns adjusted for delisting bias
              ) -> pd.DataFrame:
     """Downloads `vars` from `start_date` to `end_date` from WRDS {LIBRARY}.{TABLE} and {LIBRARY}.{NAMES_TABLE} datasets. 
         Creates `ret_adj` for delisting based on Shumway and Warther (1999) and Johnson and Zhao (2007)"""
 
     varlist_string = parse_varlist(vars, add_delist_adj_ret=add_delist_adj_ret)
-    sql_string = f"""SELECT {varlist_string},  c.dlstcd, c.dlret 
+    sql_string = f"""SELECT {varlist_string}
                         FROM {LIBRARY}.{TABLE} AS a 
                         LEFT JOIN {LIBRARY}.{NAMES_TABLE} AS b
-                            ON a.permno=b.permno AND b.namedt<=a.date AND a.date<=b.nameendt                     
-                        LEFT JOIN {LIBRARY}.{DELIST_TABLE} as c
-                            ON a.permno=c.permno AND date_trunc('month', a.date) = date_trunc('month', c.dlstdt)                            
-                """
+                            ON a.permno=b.permno AND b.namedt<=a.date AND a.date<=b.nameendt 
+                    """ 
+    if add_delist_adj_ret: sql_string +=  f""" LEFT JOIN {LIBRARY}.{DELIST_TABLE} as c
+                            ON a.permno=c.permno AND date_trunc('month', a.date) = date_trunc('month', c.dlstdt)
+                            """
+    sql_string += "WHERE 1=1 "
     if start_date is not None: sql_string += r" AND date >= %(start_date)s"
     if end_date is not None: sql_string += r" AND date <= %(end_date)s"
     if obs_limit is not None: sql_string += r" LIMIT %(obs_limit)s"
@@ -150,10 +157,9 @@ def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; `per
                              params={'start_date':start_date, 'end_date':end_date, 'obs_limit':obs_limit})
     
     if add_delist_adj_ret: df = delist_adj_ret(df, adj_ret_var)
-    else: df = df.drop(['dlret','dlstcd'], axis=1)
     return df 
 
-# %% ../../nbs/01_wrds/01_crspm.ipynb 15
+# %% ../../nbs/01_wrds/01_crspm.ipynb 19
 def clean(df: pd.DataFrame=None,        # If None, downloads `vars` using `download` function; else, must contain `permno` and `date` columns
           vars: List[str]=None,         # If None, downloads `default_raw_vars`
           obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded

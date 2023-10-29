@@ -21,13 +21,13 @@ website:
   sidebar:
     style: docked
     contents:
-      - text: "Getting Started"
+      - text: "finsets"
         href: index.ipynb
-      - text: "Metadata"
+      - text: "metadata"
         href: 00_metadata.ipynb
-      - text: "Storage"
+      - text: "storage"
         href: 01_storage.ipynb
-      - text: "Dataloader"
+      - text: "dataloader"
         href: 02_dataloader.ipynb
       - section: FRED
         contents: 00_fred/*
