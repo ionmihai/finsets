@@ -83,11 +83,11 @@ metadata.search('total assets').head()
 |       | NAME | LABEL                    | OUTPUT_OF           | INPUTS | INPUTS_GENERATED_BY | TYPE             | NR_ROWS | WRDS_LIBRARY | WRDS_TABLE | GROUP  |
 |-------|------|--------------------------|---------------------|--------|---------------------|------------------|---------|--------------|------------|--------|
 | SCORE |      |                          |                     |        |                     |                  |         |              |            |        |
-| 100   | at   | Assets - Total           | wrds.compa.download | NaN    | NaN                 | DOUBLE_PRECISION | 881760  | comp         | funda      | \<NA\> |
-| 75    | act  | Current Assets - Total   | wrds.compa.download | NaN    | NaN                 | DOUBLE_PRECISION | 881760  | comp         | funda      | \<NA\> |
-| 75    | ao   | Assets - Other           | wrds.compa.download | NaN    | NaN                 | DOUBLE_PRECISION | 881760  | comp         | funda      | \<NA\> |
-| 71    | batr | Benefits Assumed - Total | wrds.compa.download | NaN    | NaN                 | DOUBLE_PRECISION | 881760  | comp         | funda      | \<NA\> |
-| 69    | dptb | Deposits - Total - Banks | wrds.compa.download | NaN    | NaN                 | DOUBLE_PRECISION | 881760  | comp         | funda      | \<NA\> |
+| 100   | at   | Assets - Total           | wrds.compa.download | NaN    | NaN                 | DOUBLE_PRECISION | 881770  | comp         | funda      | \<NA\> |
+| 75    | act  | Current Assets - Total   | wrds.compa.download | NaN    | NaN                 | DOUBLE_PRECISION | 881770  | comp         | funda      | \<NA\> |
+| 75    | ao   | Assets - Other           | wrds.compa.download | NaN    | NaN                 | DOUBLE_PRECISION | 881770  | comp         | funda      | \<NA\> |
+| 71    | batr | Benefits Assumed - Total | wrds.compa.download | NaN    | NaN                 | DOUBLE_PRECISION | 881770  | comp         | funda      | \<NA\> |
+| 69    | dptb | Deposits - Total - Banks | wrds.compa.download | NaN    | NaN                 | DOUBLE_PRECISION | 881770  | comp         | funda      | \<NA\> |
 
 </div>
 
