@@ -6,13 +6,14 @@ __all__ = ['BaseStorage', 'LocalStorage']
 # %% ../nbs/01_storage.ipynb 3
 from abc import ABC, abstractmethod
 from pathlib import Path
-import os 
 import time
 
 import pandas as pd
+import numpy as np
 
 # %% ../nbs/01_storage.ipynb 4
 class BaseStorage(ABC):
+    "Abstract base class for different types of storage classes."
 
     @abstractmethod
     def save(self, data, dataset_name):
@@ -32,9 +33,13 @@ class BaseStorage(ABC):
 
 # %% ../nbs/01_storage.ipynb 5
 class LocalStorage(BaseStorage):
+    "Methods which facilitate storing and loading data using a local file system"
 
     def __init__(self, data_dir_path: Path):
-        self.data_dir_path = data_dir_path
+        if data_dir_path.exists() and data_dir_path.is_dir(): 
+            self.data_dir_path = data_dir_path
+        else:
+            raise ValueError(f"{data_dir_path} is not a path to an existing local directory")
 
     def save(self, data, dataset_name: str):
         data.to_pickle(self.filepath(dataset_name)) 
@@ -43,7 +48,8 @@ class LocalStorage(BaseStorage):
         return pd.read_pickle(self.filepath(dataset_name))         
     
     def exists(self, dataset_name: str):
-        return os.isfile(self.filepath(dataset_name))
+        filepath = self.filepath(dataset_name)
+        return filepath.exists() and filepath.is_file()
     
     def is_stale(self, dataset_name: str):
         one_year_seconds = 365 * 24 * 60 * 60  
@@ -52,4 +58,4 @@ class LocalStorage(BaseStorage):
         return (current_time - file_mtime) > one_year_seconds
 
     def filepath(self, dataset_name: str):
-        return self.data_dir_path/f'{dataset_name}.pkl.zip'
+        return self.data_dir_path/f'{dataset_name}'

@@ -7,7 +7,7 @@ __all__ = ['wrds_version', 'appname', 'WRDS_POSTGRES_HOST', 'WRDS_POSTGRES_PORT'
 # %% ../../nbs/01_wrds/00_wrds_api.ipynb 3
 from typing import Sequence
 import getpass
-import os, glob
+import os
 import sys
 import stat
 import pandas as pd
