@@ -161,7 +161,7 @@ class Connection(object):
         """Load the list of Postgres schemata (c.f. SAS LIBNAMEs)
         the user has permission to access."""
         self.insp = sa.inspect(self.connection)
-        print("Loading library list...")
+        #print("Loading library list...")
         query = """
 WITH pgobjs AS (
     -- objects we care about - tables, views, foreign tables, partitioned tables
@@ -201,7 +201,7 @@ ORDER BY 1;
         """
         cursor = self.connection.execute(query)
         self.schema_perm = [x[0] for x in cursor.fetchall()]
-        print("Done")
+        #print("Done")
 
     def __get_user_credentials(self):
         """Prompt the user for their WRDS credentials.
@@ -461,7 +461,7 @@ ORDER BY 1;
               5    fname     True  VARCHAR
         """
         rows = self.get_row_count(library, table)
-        print("Approximately {} rows in {}.{}.".format(rows, library, table))
+        #print("Approximately {} rows in {}.{}.".format(rows, library, table))
         table_info = pd.DataFrame.from_dict(
             self.insp.get_columns(table, schema=library)
         )

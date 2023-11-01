@@ -6,7 +6,7 @@ __all__ = ['BaseStorage', 'LocalStorage']
 # %% ../nbs/01_storage.ipynb 3
 from abc import ABC, abstractmethod
 from pathlib import Path
-import time
+import time, os, pickle
 
 import pandas as pd
 import numpy as np
@@ -23,6 +23,10 @@ class BaseStorage(ABC):
     def load(self, dataset_name):
         pass 
     
+    @abstractmethod
+    def delete(self, dataset_name):
+        pass 
+
     @abstractmethod
     def exists(self, dataset_name):
         pass  
@@ -42,11 +46,17 @@ class LocalStorage(BaseStorage):
             raise ValueError(f"{data_dir_path} is not a path to an existing local directory")
 
     def save(self, data, dataset_name: str):
-        data.to_pickle(self.filepath(dataset_name)) 
+        with open(self.filepath(dataset_name), 'wb') as f:
+            pickle.dump(data, f)
 
     def load(self, dataset_name: str):
-        return pd.read_pickle(self.filepath(dataset_name))         
+        with open(self.filepath(dataset_name), 'rb') as f:
+            data = pickle.load(f)
+        return data
     
+    def delete(self, dataset_name: str):
+        os.remove(self.filepath(dataset_name))
+
     def exists(self, dataset_name: str):
         filepath = self.filepath(dataset_name)
         return filepath.exists() and filepath.is_file()

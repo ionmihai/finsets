@@ -55,7 +55,8 @@ def features_metadata(submodules: list=['wrds', 'papers'] # list of submodules t
                         meta = func(return_metadata=True)
                         for var_name in meta['outputs']:
                             for input_name in meta['inputs']:    
-                                new_meta = pd.DataFrame({'name':var_name, 
+                                new_meta = pd.DataFrame({
+                                                'name':var_name, 
                                                 'label':meta['labels'][var_name], 
                                                 'output_of':f'{name}.{sub}.{func_name}', 
                                                 'inputs':','.join(meta['inputs'][input_name]),

@@ -83,11 +83,11 @@ metadata.search('total assets').head()
 |       | NAME | LABEL                    | OUTPUT_OF           | INPUTS | INPUTS_GENERATED_BY | TYPE             | NR_ROWS | WRDS_LIBRARY | WRDS_TABLE | GROUP  |
 |-------|------|--------------------------|---------------------|--------|---------------------|------------------|---------|--------------|------------|--------|
 | SCORE |      |                          |                     |        |                     |                  |         |              |            |        |
-| 100   | at   | Assets - Total           | wrds.compa.download | NaN    | NaN                 | DOUBLE_PRECISION | 881770  | comp         | funda      | \<NA\> |
-| 75    | act  | Current Assets - Total   | wrds.compa.download | NaN    | NaN                 | DOUBLE_PRECISION | 881770  | comp         | funda      | \<NA\> |
-| 75    | ao   | Assets - Other           | wrds.compa.download | NaN    | NaN                 | DOUBLE_PRECISION | 881770  | comp         | funda      | \<NA\> |
-| 71    | batr | Benefits Assumed - Total | wrds.compa.download | NaN    | NaN                 | DOUBLE_PRECISION | 881770  | comp         | funda      | \<NA\> |
-| 69    | dptb | Deposits - Total - Banks | wrds.compa.download | NaN    | NaN                 | DOUBLE_PRECISION | 881770  | comp         | funda      | \<NA\> |
+| 100   | at   | Assets - Total           | wrds.compa.download | NaN    | NaN                 | DOUBLE_PRECISION | 881927  | comp         | funda      | \<NA\> |
+| 75    | act  | Current Assets - Total   | wrds.compa.download | NaN    | NaN                 | DOUBLE_PRECISION | 881927  | comp         | funda      | \<NA\> |
+| 75    | ao   | Assets - Other           | wrds.compa.download | NaN    | NaN                 | DOUBLE_PRECISION | 881927  | comp         | funda      | \<NA\> |
+| 71    | batr | Benefits Assumed - Total | wrds.compa.download | NaN    | NaN                 | DOUBLE_PRECISION | 881927  | comp         | funda      | \<NA\> |
+| 69    | rvti | Reserves - Total         | wrds.compa.download | NaN    | NaN                 | DOUBLE_PRECISION | 881927  | comp         | funda      | \<NA\> |
 
 </div>
 
@@ -110,9 +110,6 @@ from finsets.wrds import wrds_api
 ``` python
 db = wrds_api.Connection()
 ```
-
-    Loading library list...
-    Done
 
 This will prompt you for your WRDS username and password. After you
 enter your credentials, if you don’t have a `pgpass` file already set
@@ -161,22 +158,24 @@ Alternatively, you can supply the API key directly as the `api_key`
 parameter in each function in the `fred` module.
 
 ``` python
-fred.clean('GDP', label='Nominal GDP').tail()
+fred.clean(vars = ['GDP'])
 ```
 
-<div>
-
-
-|        | dtdate     | Nominal GDP |
-|--------|------------|-------------|
-| Qdate  |            |             |
-| 2022Q3 | 2022-07-01 | 25994.639   |
-| 2022Q4 | 2022-10-01 | 26408.405   |
-| 2023Q1 | 2023-01-01 | 26813.601   |
-| 2023Q2 | 2023-04-01 | 27063.012   |
-| 2023Q3 | 2023-07-01 | 27623.543   |
-
-</div>
+    {'Q':            dtdate    nom_gdp
+     Qdate                       
+     1947Q1 1947-01-01    243.164
+     1947Q2 1947-04-01    245.968
+     1947Q3 1947-07-01    249.585
+     1947Q4 1947-10-01    259.745
+     1948Q1 1948-01-01    265.742
+     ...           ...        ...
+     2022Q3 2022-07-01  25994.639
+     2022Q4 2022-10-01  26408.405
+     2023Q1 2023-01-01  26813.601
+     2023Q2 2023-04-01  27063.012
+     2023Q3 2023-07-01  27623.543
+     
+     [307 rows x 2 columns]}
 
 ## PAPERS
 
