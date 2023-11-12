@@ -79,7 +79,7 @@ def parse_varlist(vars: List[str]|str=None, #list of variables requested by user
 # %% ../../nbs/01_wrds/03_compa.ipynb 11
 def get_raw_data(
         vars: List[str]=None, # If None, downloads `default_raw_vars`; use '*' to get all available variables
-        obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded
+        nrows: int=None, #Number of rows to download. If None, full dataset will be downloaded
         start_date: str=None, # Start date in MM/DD/YYYY format
         end_date: str=None #End date in MM/DD/YYYY format
 ) -> pd.DataFrame:
@@ -87,31 +87,34 @@ def get_raw_data(
  
     vars = parse_varlist(vars, prefix='a.')
 
-    sql_string=f"""SELECT b.lpermno as permno, b.lpermco as permco, b.liid as iid, {vars}
+    sql_string=f"""SELECT b.lpermno as permno, b.lpermco as permco, b.liid as iid, b.linkprim as linkprim, {vars}
                     FROM {LIBRARY}.{TABLE} AS a
                     INNER JOIN {LINK_LIBRARY}.{LINK_TABLE} AS b ON a.gvkey = b.gvkey
                     WHERE datadate BETWEEN b.linkdt AND COALESCE(b.linkenddt, CURRENT_DATE)
-                            AND b.linktype IN ('LU','LC') AND b.linkprim IN ('P','C')
+                            AND b.linktype IN ('LU','LC') 
                             AND indfmt='INDL' AND datafmt='STD' AND popsrc='D' AND consol='C'
                 """
     if start_date is not None: sql_string += r" AND datadate >= %(start_date)s"
     if end_date is not None: sql_string += r" AND datadate <= %(end_date)s"
-    if obs_limit is not None: sql_string += r" LIMIT %(obs_limit)s"
-
+    if nrows is not None: sql_string += r" LIMIT %(nrows)s"
+    
     return wrds_api.download(sql_string,
-                             params={'start_date':start_date, 'end_date':end_date, 'obs_limit':obs_limit})
+                             params={'start_date':start_date, 'end_date':end_date, 'nrows':nrows})
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 17
+# %% ../../nbs/01_wrds/03_compa.ipynb 18
 def process_raw_data(
-        df: pd.DataFrame=None,  # Must contain `permno` and `datadate` columns         
+        df: pd.DataFrame=None,  # Must contain `permno` and `datadate` columns   
+        linkprim_filter: list=['P','C'],      
         clean_kwargs: dict={},  # Params to pass to `pdm.setup_panel` other than `panel_ids`, `time_var`, and `freq`
 ) -> pd.DataFrame:
     """Applies `pandasmore.setup_panel` to `df`"""
 
+    if linkprim_filter: df = df.loc[df['linkprim'].isin(linkprim_filter)].copy()
+
     df = pdm.setup_panel(df, panel_ids=ENTITY_ID_IN_RAW_DSET, time_var=TIME_VAR_IN_RAW_DSET, freq=FREQ, **clean_kwargs)
     return df 
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 20
+# %% ../../nbs/01_wrds/03_compa.ipynb 21
 def features(df: pd.DataFrame=None
              ) -> pd.DataFrame:
 

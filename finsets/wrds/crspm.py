@@ -84,7 +84,7 @@ def parse_varlist(vars: List[str]=None,
 # %% ../../nbs/01_wrds/01_crspm.ipynb 14
 def get_raw_data(
         vars: List[str]=None, # If None, downloads `default_raw_vars`; use '*' to get all available variables
-        obs_limit: int=None,  #Number of rows to download. If None, full dataset will be downloaded             
+        nrows: int=None,  #Number of rows to download. If None, full dataset will be downloaded             
         start_date: str=None,          # Start date in MM/DD/YYYY format
         end_date: str=None,            # End date in MM/DD/YYYY format  
 ) -> pd.DataFrame:
@@ -101,10 +101,10 @@ def get_raw_data(
     sql_string += "WHERE 1=1 "
     if start_date is not None: sql_string += r" AND date >= %(start_date)s"
     if end_date is not None: sql_string += r" AND date <= %(end_date)s"
-    if obs_limit is not None: sql_string += r" LIMIT %(obs_limit)s"
+    if nrows is not None: sql_string += r" LIMIT %(nrows)s"
 
     df = wrds_api.download(sql_string,
-                             params={'start_date':start_date, 'end_date':end_date, 'obs_limit':obs_limit})
+                             params={'start_date':start_date, 'end_date':end_date, 'nrows':nrows})
     
     return df 
 

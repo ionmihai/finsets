@@ -33,12 +33,12 @@ def list_all_vars(url: str=URL,
 
 # %% ../../nbs/02_papers/hassan_etal_2019.ipynb 9
 def get_raw_data(url: str=URL, 
-            obs_limit: int=None, # How many rows to download. If None, all rows are downloaded
+            nrows: int=None, # How many rows to download. If None, all rows are downloaded
             delimiter: str='\t'
             ) -> pd.DataFrame:
     """Download raw data from `url`"""
 
-    return get_text_file_from_url(url, nrows=obs_limit, delimiter=delimiter)
+    return get_text_file_from_url(url, nrows=nrows, delimiter=delimiter)
 
 # %% ../../nbs/02_papers/hassan_etal_2019.ipynb 12
 def process_raw_data(
