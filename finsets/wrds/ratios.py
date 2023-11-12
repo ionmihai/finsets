@@ -2,21 +2,17 @@
 
 # %% ../../nbs/01_wrds/05_ratios.ipynb 3
 from __future__ import annotations
-from pathlib import Path
 from typing import List
-import os
 
 import pandas as pd
-import numpy as np
 
 import pandasmore as pdm
 from . import wrds_api
-from .. import RESOURCES
 
 # %% auto 0
 __all__ = ['PROVIDER', 'URL', 'LIBRARY', 'TABLE', 'FREQ', 'MIN_YEAR', 'MAX_YEAR', 'ENTITY_ID_IN_RAW_DSET',
-           'ENTITY_ID_IN_CLEAN_DSET', 'TIME_VAR_IN_RAW_DSET', 'TIME_VAR_IN_CLEAN_DSET', 'LABELS_FILE', 'raw_metadata',
-           'download', 'clean']
+           'ENTITY_ID_IN_CLEAN_DSET', 'TIME_VAR_IN_RAW_DSET', 'TIME_VAR_IN_CLEAN_DSET', 'list_all_vars', 'get_raw_data',
+           'process_raw_data', 'keep_only_ratios']
 
 # %% ../../nbs/01_wrds/05_ratios.ipynb 4
 PROVIDER = 'Wharton Research Data Services (WRDS)'
@@ -30,53 +26,29 @@ ENTITY_ID_IN_RAW_DSET = 'permno'
 ENTITY_ID_IN_CLEAN_DSET = 'permno'
 TIME_VAR_IN_RAW_DSET = 'public_date'
 TIME_VAR_IN_CLEAN_DSET = 'Mdate'
-LABELS_FILE = RESOURCES/'finratio_firm_ibes_variable_descriptions.csv'
 
 # %% ../../nbs/01_wrds/05_ratios.ipynb 5
-def raw_metadata() -> pd.DataFrame:
-    "Collects metadata from WRDS `{LIBRARY}.{TABLE}` and merges it with variable labels from LABELS_FILE."
+def list_all_vars() -> pd.DataFrame:
+    "Collects names of all available variables from WRDS f`{LIBRARY}.{TABLE}`"
 
     try:
         db = wrds_api.Connection()
-        finr = db.describe_table(LIBRARY,TABLE)
-        finr_rows = db.get_row_count(LIBRARY,TABLE)
+        funda = db.describe_table(LIBRARY,TABLE)
     finally:
         db.close()
-        
-    finr_meta = finr[['name','type']].copy()
-    finr_meta['nr_rows'] = finr_rows
-    finr_meta['wrds_library'] = LIBRARY
-    finr_meta['wrds_table'] = TABLE
 
-    # Get variable labels from LABELS_FILE
-    df = pd.read_csv(LABELS_FILE)
-    df['Variable Label'] = df.apply(lambda row: row['Description'].replace(row['Variable Name'].strip()+' -- ', ''), axis=1)
-    df['Variable Label'] = df.apply(lambda row: row['Variable Label'].replace( '(' + row['Variable Name'].strip() + ')', ''), axis=1)
-    df['Variable Name'] = df['Variable Name'].str.strip().str.lower()
-    df = df[['Variable Name', 'Variable Label', 'Group']].copy()
-    df.columns = ['name','label','group']
-
-    # Merge metadata with labels and clean up a bit
-    df = finr_meta.merge(df, how='left', on='name')
-    df['output_of'] = 'wrds.ratios.download'
-    df = pdm.order_columns(df,these_first=['name','label','output_of'])
-    for v in list(df.columns):
-        df[v] = df[v].astype('string')
-    
-    return df
+    return funda[['name']]
 
 # %% ../../nbs/01_wrds/05_ratios.ipynb 8
-def download(vars: List[str]=None, # If None, downloads all variables
+def get_raw_data(vars: List[str]=None, # If None or '*', downloads all variables
              obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded
              start_date: str=None, # Start date in MM/DD/YYYY format
              end_date: str=None #End date in MM/DD/YYYY format
              ) -> pd.DataFrame:
     """Downloads `vars` from `start_date` to `end_date` from WRDS `{LIBRARY}.{TABLE}` library"""
 
-    if vars is None: 
-        vars = '*'
-    else:
-        vars = ','.join(['public_date','permno'] + [f'{x}' for x in vars if x not in ['public_date', 'permno']])
+    if vars is None or vars=='*': vars = '*'
+    else: vars = ','.join(['public_date','permno'] + [f'{x}' for x in vars if x not in ['public_date', 'permno']])
 
     sql_string=f"""SELECT {vars} FROM {LIBRARY}.{TABLE} WHERE 1 = 1 """
     if start_date is not None: sql_string += r" AND public_date >= %(start_date)s"
@@ -84,18 +56,31 @@ def download(vars: List[str]=None, # If None, downloads all variables
     if obs_limit is not None: sql_string += r" LIMIT %(obs_limit)s"
 
     return wrds_api.download(sql_string,
-                             params={'start_date':start_date, 'end_date':end_date, 'obs_limit':obs_limit})
+                            params={'start_date':start_date, 'end_date':end_date, 'obs_limit':obs_limit})
 
 # %% ../../nbs/01_wrds/05_ratios.ipynb 12
-def clean(df: pd.DataFrame=None,        # If None, downloads `vars` using `download` function; else, must contain `permno` and `date` columns
-          vars: List[str]=None,         # If None, downloads `default_raw_vars`
-          obs_limit: int=None,          # Number of rows to download. If None, full dataset will be downloaded
-          start_date: str="01/01/1900", # Start date in MM/DD/YYYY format
-          end_date: str=None,           # End date. Default is current date          
-          clean_kwargs: dict={},        # Params to pass to `pdm.setup_panel` other than `panel_ids`, `time_var`, and `freq`
-          ) -> pd.DataFrame:
-    """Applies `pandasmore.setup_panel` to `df`. If `df` is None, downloads `vars` using `download` function."""
+def process_raw_data(
+        df: pd.DataFrame=None,  # Must contain `permno` and `datadate` columns         
+        clean_kwargs: dict={},  # Params to pass to `pdm.setup_panel` other than `panel_ids`, `time_var`, and `freq`
+) -> pd.DataFrame:
+    """Applies `pandasmore.setup_panel` to `df`"""
 
-    if df is None: df = download(vars=vars, obs_limit=obs_limit, start_date=start_date, end_date=end_date)
-    df = pdm.setup_panel(df, panel_ids=ENTITY_ID_IN_CLEAN_DSET, time_var=TIME_VAR_IN_RAW_DSET, freq=FREQ, **clean_kwargs)
+    df = pdm.setup_panel(df, panel_ids=ENTITY_ID_IN_RAW_DSET, time_var=TIME_VAR_IN_RAW_DSET, freq=FREQ, **clean_kwargs)
     return df 
+
+# %% ../../nbs/01_wrds/05_ratios.ipynb 15
+def keep_only_ratios(
+        df: pd.DataFrame
+) -> pd.DataFrame:
+    
+    out = pd.DataFrame(index=df.index)
+
+    not_ratios = r"""be, mktcap, price, dtdate, permno, gvkey, ticker, 
+                    cusip, public_date, adate, qdate, gsector, gicdesc,
+                """.replace("\n", "").replace(' ','').split(',')
+    
+    for col in list(df.columns):
+        if col not in not_ratios and not col.startswith('ffi'):
+            out[col] = df[col].copy()
+
+    return out

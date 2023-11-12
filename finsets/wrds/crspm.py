@@ -2,21 +2,19 @@
 
 # %% ../../nbs/01_wrds/01_crspm.ipynb 3
 from __future__ import annotations
-from pathlib import Path
 from typing import List
-import os
 
 import pandas as pd
 import numpy as np
 
 import pandasmore as pdm
 from . import wrds_api
-from .. import RESOURCES
 
 # %% auto 0
 __all__ = ['PROVIDER', 'URL', 'LIBRARY', 'TABLE', 'NAMES_TABLE', 'DELIST_TABLE', 'FREQ', 'MIN_YEAR', 'MAX_YEAR',
            'ENTITY_ID_IN_RAW_DSET', 'ENTITY_ID_IN_CLEAN_DSET', 'TIME_VAR_IN_RAW_DSET', 'TIME_VAR_IN_CLEAN_DSET',
-           'LABELS_FILE', 'raw_metadata', 'default_raw_vars', 'parse_varlist', 'delist_adj_ret', 'download', 'clean']
+           'list_all_vars', 'default_raw_vars', 'parse_varlist', 'get_raw_data', 'process_raw_data', 'delist_adj_ret',
+           'features']
 
 # %% ../../nbs/01_wrds/01_crspm.ipynb 4
 PROVIDER = 'Wharton Research Data Services (WRDS)'
@@ -32,120 +30,72 @@ ENTITY_ID_IN_RAW_DSET = 'permno'
 ENTITY_ID_IN_CLEAN_DSET = 'permno'
 TIME_VAR_IN_RAW_DSET = 'date'
 TIME_VAR_IN_CLEAN_DSET = 'Mdate'
-LABELS_FILE = RESOURCES/'crspm_variable_descriptions.csv'
 
 # %% ../../nbs/01_wrds/01_crspm.ipynb 5
-def raw_metadata() -> pd.DataFrame:
-    "Collects metadata from WRDS `{LIBRARY}.{TABLE}` and `{LIBRARY}.{NAMES_TABLE}` tables and merges it with variable labels from LABELS_FILE"
+def list_all_vars() -> pd.DataFrame:
+    "Collects names of all available variables from WRDS `{LIBRARY}.{TABLE}` and `{LIBRARY}.{NAMES_TABLE}`"
 
     try:
         db = wrds_api.Connection()
-        msf = db.describe_table(LIBRARY,TABLE)
-        msf_rows = db.get_row_count(LIBRARY,TABLE)
-        mse = db.describe_table(LIBRARY,NAMES_TABLE)
-        mse_rows = db.get_row_count(LIBRARY,NAMES_TABLE)
+        msf = db.describe_table(LIBRARY,TABLE).assign(table=TABLE)
+        mse = db.describe_table(LIBRARY,NAMES_TABLE).assign(table=NAMES_TABLE)
+        dlst = db.describe_table(LIBRARY,DELIST_TABLE).assign(table=DELIST_TABLE)
     finally:
         db.close()
-        
-    msf_meta = msf[['name','type']].copy()
-    msf_meta['nr_rows'] = msf_rows
-    msf_meta['wrds_library'] = LIBRARY
-    msf_meta['wrds_table'] = TABLE
 
-    mse_meta = mse[['name','type']].copy()
-    mse_meta['nr_rows'] = mse_rows
-    mse_meta['wrds_library'] = LIBRARY
-    mse_meta['wrds_table'] = NAMES_TABLE
+    return pd.concat([msf, mse, dlst])[['name','table', 'type']].copy() #.drop_duplicates(keep='first')
 
-    # Get variable labels from LABELS_FILE
-    df = pd.read_csv(LABELS_FILE)
-    df['Variable Label'] = df.apply(lambda row: row['Description'].replace(row['Variable Name'].strip()+' -- ', ''), axis=1)
-    df['Variable Label'] = df.apply(lambda row: row['Variable Label'].replace( '(' + row['Variable Name'].strip() + ')', ''), axis=1)
-    df['Variable Name'] = df['Variable Name'].str.strip().str.lower()
-    df = df[['Variable Name', 'Variable Label']].copy()
-    df.columns = ['name','label']
-
-    # Merge metadata and variable labels and clean up a bit
-    crsp_meta = (pd.concat([msf_meta, mse_meta],axis=0, ignore_index=True)
-                .merge(df, how='left', on='name'))
-    crsp_meta['output_of'] = 'wrds.crspm.download'
-    crsp_meta = pdm.order_columns(crsp_meta,these_first=['name','label','output_of'])
-    for v in list(crsp_meta.columns):
-        crsp_meta[v] = crsp_meta[v].astype('string')
-    
-    return crsp_meta
-
-# %% ../../nbs/01_wrds/01_crspm.ipynb 7
+# %% ../../nbs/01_wrds/01_crspm.ipynb 9
 def default_raw_vars():
-    """Default variables used in `download` if none are specified."""
+    """Defines default variables used in `get_raw_data` if none are specified."""
     
     return ['permno','permco','date',
             'ret', 'retx', 'shrout', 'prc', 
-            'shrcd', 'exchcd','siccd','ticker','cusip','ncusip']            
-
-# %% ../../nbs/01_wrds/01_crspm.ipynb 10
-def parse_varlist(vars: List[str]=None,
-                  required_vars = ['permno','permco','date'],
-                  add_delist_adj_ret: str=None
-                  ) -> str:
-    """Figure out which `vars` come from the `{LIBRARY}.{TABLE}` table and which come from the `{LIBRARY}.{NAMES_TABLE}` table and add a. and b. prefixes"""
-
-    if vars is None: vars = default_raw_vars()
-    adj_vars = ['ret','exchcd','dlret','dlstcd','dlstdt'] if add_delist_adj_ret else []
-    req_vars = required_vars + [x for x in adj_vars if x not in required_vars]
-    all_vars =  req_vars + [x for x in list(set(vars)) if x not in req_vars]
-
-    try:
-        db = wrds_api.Connection()
-        all_msf_vars = list(db.describe_table(LIBRARY,TABLE).name)
-        all_mse_vars = list(db.describe_table(LIBRARY,NAMES_TABLE).name)
-        all_delist_vars = list(db.describe_table(LIBRARY,DELIST_TABLE).name) if add_delist_adj_ret else []
-        my_msf_vars = [f'a.{x}' for x in all_vars if x in all_msf_vars]
-        my_mse_vars = [f'b.{x}' for x in all_vars if (x in all_mse_vars) 
-                                                        and (x not in all_msf_vars)]
-        my_delist_vars = [f'c.{x}' for x in all_vars if (x in all_delist_vars) 
-                                                        and (x not in all_mse_vars) and (x not in all_msf_vars)]
-        varlist_string = ','.join(my_msf_vars + my_mse_vars + my_delist_vars)
-    finally:
-        db.close()
-        
-    return varlist_string
+            'shrcd', 'exchcd','siccd','ticker','cusip','ncusip',
+            'dlret','dlstcd','dlstdt']            
 
 # %% ../../nbs/01_wrds/01_crspm.ipynb 11
-def delist_adj_ret(df: pd.DataFrame, # Requires `ret`,`exchcd`, `dlret`, and `dlstcd` variables
-                       adj_ret_var: str
-                       ) -> pd.DataFrame:
-    """Adjust for delisting returns using Shumway and Warther (1999) and Johnson and Zhao (2007)"""
+def parse_varlist(vars: List[str]=None,
+                  required_vars = ['permno','permco','date','ret','exchcd','dlret','dlstcd','dlstdt'],
+                  ) -> str:
+    """Figures out which `vars` come from the `{LIBRARY}.{TABLE}` table and which come from the `{LIBRARY}.{NAMES_TABLE}` table and adds a. and b. prefixes to variable names to feed into an SQL query"""
 
-    df['npdelist'] = (df['dlstcd']==500) | df['dlstcd'].between(520,584)
-    df['dlret'] = np.where(df.dlret.isna() & df.npdelist & df.exchcd.isin([1,2]), -0.35, df.dlret)
-    df['dlret'] = np.where(df.dlret.isna() & df.npdelist & df.exchcd.isin([3]), -0.55, df.dlret)
-    df['dlret'] = np.where(df.dlret.notna() & df.dlret < -1, -1, df.dlret)
-    df['dlret'] = df.dlret.fillna(0)
+    # Get all available variables and add suffixes needed for the SQL query
+    suffix_mapping = {TABLE: 'a.', NAMES_TABLE: 'b.', DELIST_TABLE: 'c.'}
+    all_avail_vars = list_all_vars().drop_duplicates(subset='name',keep='first').copy()
+    all_avail_vars['w_prefix'] = all_avail_vars.apply(lambda row: suffix_mapping[row['table']] + row['name'] , axis=1)
 
-    df[adj_ret_var] = (1 + df.ret) * (1 + df.dlret) - 1
-    df[adj_ret_var] = np.where(df[adj_ret_var].isna() & (df.dlret!=0), df.dlret, df[adj_ret_var])
-    df = df.drop('npdelist', axis=1) 
-    return df
+    if vars == '*': return ','.join(list(all_avail_vars['w_prefix']))
+    
+    # Add required vars to requested vars
+    if vars is None: vars = default_raw_vars()
+    vars_to_get =  required_vars + [x for x in list(set(vars)) if x not in required_vars]
 
-# %% ../../nbs/01_wrds/01_crspm.ipynb 12
-def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; `permno`, `permco`, `date` are added by default
-             obs_limit: int=None,  #Number of rows to download. If None, full dataset will be downloaded             
-             start_date: str=None,          # Start date in MM/DD/YYYY format
-             end_date: str=None,            # End date in MM/DD/YYYY format  
-             add_delist_adj_ret: bool=False, # Whether to calculate delisting-adjusted returns 
-             adj_ret_var: str='ret_adj'     # What to call the returns adjusted for delisting bias
-             ) -> pd.DataFrame:
-    """Downloads `vars` from `start_date` to `end_date` from WRDS {LIBRARY}.{TABLE} and {LIBRARY}.{NAMES_TABLE} datasets. 
-        Creates `ret_adj` for delisting based on Shumway and Warther (1999) and Johnson and Zhao (2007)"""
+    # Validate variables to be downloaded (make sure that they are in the target database)
+    invalid_vars = [v for v in vars_to_get if v not in list(all_avail_vars.name)]
+    if invalid_vars: raise ValueError(f"These vars are not in the database: {invalid_vars}") 
 
-    varlist_string = parse_varlist(vars, add_delist_adj_ret=add_delist_adj_ret)
+    # Extract information on which variable comes from which wrds table, so we know what prefix to use
+    vars_to_get = pd.DataFrame(vars_to_get, columns=['name'])
+    get_these = vars_to_get.merge(all_avail_vars, how = 'left', on = 'name')
+        
+    return ','.join(list(get_these['w_prefix']))
+
+# %% ../../nbs/01_wrds/01_crspm.ipynb 14
+def get_raw_data(
+        vars: List[str]=None, # If None, downloads `default_raw_vars`; use '*' to get all available variables
+        obs_limit: int=None,  #Number of rows to download. If None, full dataset will be downloaded             
+        start_date: str=None,          # Start date in MM/DD/YYYY format
+        end_date: str=None,            # End date in MM/DD/YYYY format  
+) -> pd.DataFrame:
+    "Downloads `vars` from `start_date` to `end_date` from WRDS {LIBRARY}.{TABLE}, {LIBRARY}.{NAMES_TABLE} and {LIBRARY}.{DELIST_TABLE}." 
+
+    varlist_string = parse_varlist(vars)
     sql_string = f"""SELECT {varlist_string}
                         FROM {LIBRARY}.{TABLE} AS a 
                         LEFT JOIN {LIBRARY}.{NAMES_TABLE} AS b
                             ON a.permno=b.permno AND b.namedt<=a.date AND a.date<=b.nameendt 
-                    """ 
-    if add_delist_adj_ret: sql_string +=  f""" LEFT JOIN {LIBRARY}.{DELIST_TABLE} as c
+                        LEFT JOIN {LIBRARY}.{DELIST_TABLE} as c
                             ON a.permno=c.permno AND date_trunc('month', a.date) = date_trunc('month', c.dlstdt)
                             """
     sql_string += "WHERE 1=1 "
@@ -156,19 +106,46 @@ def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; `per
     df = wrds_api.download(sql_string,
                              params={'start_date':start_date, 'end_date':end_date, 'obs_limit':obs_limit})
     
-    if add_delist_adj_ret: df = delist_adj_ret(df, adj_ret_var)
     return df 
 
-# %% ../../nbs/01_wrds/01_crspm.ipynb 19
-def clean(df: pd.DataFrame=None,        # If None, downloads `vars` using `download` function; else, must contain `permno` and `date` columns
-          vars: List[str]=None,         # If None, downloads `default_raw_vars`
-          obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded
-          start_date: str="01/01/1900", # Start date in MM/DD/YYYY format
-          end_date: str=None,           # End date. Default is current date          
-          clean_kwargs: dict={},        # Params to pass to `pdm.setup_panel` other than `panel_ids`, `time_var`, and `freq`
-          ) -> pd.DataFrame:
-    """Applies `pandasmore.setup_panel` to `df`. If `df` is None, downloads `vars` using `download` function."""
+# %% ../../nbs/01_wrds/01_crspm.ipynb 17
+def process_raw_data(
+        df: pd.DataFrame=None,  # Must contain `permno` and `date` columns         
+        clean_kwargs: dict={},  # Params to pass to `pdm.setup_panel` other than `panel_ids`, `time_var`, and `freq`
+) -> pd.DataFrame:
+    """Applies `pandasmore.setup_panel` to `df`"""
 
-    if df is None: df = download(vars=vars, obs_limit=obs_limit, start_date=start_date, end_date=end_date)
     df = pdm.setup_panel(df, panel_ids=ENTITY_ID_IN_RAW_DSET, time_var=TIME_VAR_IN_RAW_DSET, freq=FREQ, **clean_kwargs)
     return df 
+
+# %% ../../nbs/01_wrds/01_crspm.ipynb 20
+def delist_adj_ret(
+        df: pd.DataFrame, # Requires `ret`,`exchcd`, `dlret`, and `dlstcd` variables
+        adj_ret_var: str='ret_adj'
+) -> pd.DataFrame:
+    """Adjusts for returns for delisting using Shumway and Warther (1999) and Johnson and Zhao (2007)"""
+
+    df['npdelist'] = (df['dlstcd']==500) | df['dlstcd'].between(520,584)
+    df['dlret'] = np.where(df['dlret'].isna() & df['npdelist'] & df['exchcd'].isin([1,2]), -0.35, df['dlret'])
+    df['dlret'] = np.where(df['dlret'].isna() & df['npdelist'] & df['exchcd'].isin([3]), -0.55, df['dlret'])
+    df['dlret'] = np.where(df['dlret'].notna() & df['dlret'] < -1, -1, df['dlret'])
+    df['dlret'] = df['dlret'].fillna(0)
+
+    df[adj_ret_var] = (1 + df.ret) * (1 + df['dlret']) - 1
+    df[adj_ret_var] = np.where(df[adj_ret_var].isna() & (df['dlret']!=0), df['dlret'], df[adj_ret_var])
+    df = df.drop('npdelist', axis=1) 
+    return df
+
+# %% ../../nbs/01_wrds/01_crspm.ipynb 22
+def features(
+        df: pd.DataFrame,
+) -> pd.DataFrame:
+    
+    out = pd.DataFrame(index=df.index)
+
+    out['ret_adj'] = delist_adj_ret(df, adj_ret_var='ret_adj')[['ret_adj']].copy()
+
+    out['lbhret12'] = pdm.rrolling(1+df['ret'], window=12, func='prod') - 1
+    out['retvol12'] = pdm.rrolling(df['ret'], window=12, func='std') 
+
+    return out 

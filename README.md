@@ -7,10 +7,8 @@
 Each module handles a different data source. Almost all submodules
 (other than utility ones) have a
 [`download`](https://ionmihai.github.io/finsets/01_wrds/wrds_api.html#download)
-function that downloads the raw data and a
-[`clean`](https://ionmihai.github.io/finsets/01_wrds/ratios.html#clean)
-function that processes the data into a `pandas.DataFrame` having, as
-index, either:
+function that downloads the raw data and a `clean` function that
+processes the data into a `pandas.DataFrame` having, as index, either:
 
 - A `pandas.Period` date reflecting the frequency of the data (for
   time-series datasets), or
@@ -42,54 +40,12 @@ import finsets as fds
 or
 
 ``` python
-from finsets import fred, wrds, papers, metadata
+from finsets import fred, wrds, papers
 ```
 
 Below, we very briefly describe each submodule. For more details, please
 see the documentation of each submodule (they provide a lot more
 functionality than presented here).
-
-## Core
-
-> Functions that are not specific to a particular data source.
-
-The functions in this model are available directly in the `finsets`
-namespace. For example:
-
-``` python
-metadata.features_metadata().head()
-```
-
-<div>
-
-
-|     | name          | label              | output_of                | inputs                                            | inputs_generated_by |
-|-----|---------------|--------------------|--------------------------|---------------------------------------------------|---------------------|
-| 0   | bookeq        | Book equity        | wrds.compa.book_equity   | at,lt,seq,ceq,txditc,pstk,pstkrv,pstkl,itcb       | wrds.compa.clean    |
-| 1   | shreq         | Shareholder equity | wrds.compa.book_equity   | at,lt,seq,ceq,txditc,pstk,pstkrv,pstkl,itcb       | wrds.compa.clean    |
-| 2   | pref_stock    | Preferred stock    | wrds.compa.book_equity   | at,lt,seq,ceq,txditc,pstk,pstkrv,pstkl,itcb       | wrds.compa.clean    |
-| 3   | tobinq        | Tobin Q            | wrds.compa.tobin_q       | at,lt,seq,ceq,txditc,pstk,pstkrv,pstkl,itcb,pr... | wrds.compa.clean    |
-| 4   | equityiss_tot | Equity issuance    | wrds.compa.issuance_vars | at,lt,seq,ceq,txditc,pstk,pstkrv,pstkl,itcb,ss... | wrds.compa.clean    |
-
-</div>
-
-``` python
-metadata.search('total assets').head()
-```
-
-<div>
-
-
-|       | NAME | LABEL                    | OUTPUT_OF           | INPUTS | INPUTS_GENERATED_BY | TYPE             | NR_ROWS | WRDS_LIBRARY | WRDS_TABLE | GROUP  |
-|-------|------|--------------------------|---------------------|--------|---------------------|------------------|---------|--------------|------------|--------|
-| SCORE |      |                          |                     |        |                     |                  |         |              |            |        |
-| 100   | at   | Assets - Total           | wrds.compa.download | NaN    | NaN                 | DOUBLE_PRECISION | 881927  | comp         | funda      | \<NA\> |
-| 75    | act  | Current Assets - Total   | wrds.compa.download | NaN    | NaN                 | DOUBLE_PRECISION | 881927  | comp         | funda      | \<NA\> |
-| 75    | ao   | Assets - Other           | wrds.compa.download | NaN    | NaN                 | DOUBLE_PRECISION | 881927  | comp         | funda      | \<NA\> |
-| 71    | batr | Benefits Assumed - Total | wrds.compa.download | NaN    | NaN                 | DOUBLE_PRECISION | 881927  | comp         | funda      | \<NA\> |
-| 69    | rvti | Reserves - Total         | wrds.compa.download | NaN    | NaN                 | DOUBLE_PRECISION | 881927  | comp         | funda      | \<NA\> |
-
-</div>
 
 ## WRDS
 
@@ -158,24 +114,45 @@ Alternatively, you can supply the API key directly as the `api_key`
 parameter in each function in the `fred` module.
 
 ``` python
-fred.clean(vars = ['GDP'])
+gdp = fred.get_raw_data(['GDP'])
 ```
 
-    {'Q':            dtdate    nom_gdp
-     Qdate                       
-     1947Q1 1947-01-01    243.164
-     1947Q2 1947-04-01    245.968
-     1947Q3 1947-07-01    249.585
-     1947Q4 1947-10-01    259.745
-     1948Q1 1948-01-01    265.742
-     ...           ...        ...
-     2022Q3 2022-07-01  25994.639
-     2022Q4 2022-10-01  26408.405
-     2023Q1 2023-01-01  26813.601
-     2023Q2 2023-04-01  27063.012
-     2023Q3 2023-07-01  27623.543
-     
-     [307 rows x 2 columns]}
+``` python
+gdp['info']
+```
+
+<div>
+
+
+|     | id  | realtime_start | realtime_end | title                  | observation_start | observation_end | frequency | frequency_short | units               | units_short | seasonal_adjustment             | seasonal_adjustment_short | last_updated           | popularity | notes                                            |
+|-----|-----|----------------|--------------|------------------------|-------------------|-----------------|-----------|-----------------|---------------------|-------------|---------------------------------|---------------------------|------------------------|------------|--------------------------------------------------|
+| 0   | GDP | 2023-11-12     | 2023-11-12   | Gross Domestic Product | 1947-01-01        | 2023-07-01      | Quarterly | Q               | Billions of Dollars | Bil. of \$  | Seasonally Adjusted Annual Rate | SAAR                      | 2023-10-26 07:55:01-05 | 92         | BEA Account Code: A191RC Gross domestic produ... |
+
+</div>
+
+``` python
+gdp['Q']
+```
+
+<div>
+
+
+|            | GDP       |
+|------------|-----------|
+| 1947-01-01 | 243.164   |
+| 1947-04-01 | 245.968   |
+| 1947-07-01 | 249.585   |
+| 1947-10-01 | 259.745   |
+| 1948-01-01 | 265.742   |
+| ...        | ...       |
+| 2022-07-01 | 25994.639 |
+| 2022-10-01 | 26408.405 |
+| 2023-01-01 | 26813.601 |
+| 2023-04-01 | 27063.012 |
+| 2023-07-01 | 27623.543 |
+
+<p>307 rows × 1 columns</p>
+</div>
 
 ## PAPERS
 
@@ -191,7 +168,18 @@ Measurement and Effects” (2019) by Tarek A. Hassan, Stephan Hollander,
 Laurence van Lent, Ahmed Tahoun is named `hasan_etal_2019`.
 
 ``` python
-papers.hassan_etal_2019.variables()[:7]
+papers.hassan_etal_2019.list_all_vars().head()
 ```
 
-    ['gvkey', 'date', 'date_earningscall', 'PRisk', 'NPRisk', 'Risk', 'PSentiment']
+<div>
+
+
+|     | name   |
+|-----|--------|
+| 0   | gvkey  |
+| 1   | date   |
+| 2   | PRisk  |
+| 3   | NPRisk |
+| 4   | Risk   |
+
+</div>

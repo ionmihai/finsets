@@ -80,7 +80,7 @@ class Connection(object):
             self.connect()
             self.load_library_list()
 
-    def __make_sa_engine_conn(self, raise_err=False):  #MION changed raise_err default to True
+    def __make_sa_engine_conn(self, raise_err=False):  
         username = self._username
         hostname = self._hostname
         password = urllib.parse.quote_plus(self._password)

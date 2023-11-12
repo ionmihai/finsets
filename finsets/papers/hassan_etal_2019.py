@@ -5,11 +5,12 @@ from __future__ import annotations
 import pandas as pd
 
 import pandasmore as pdm
-from .. import wrds, RESOURCES, dataloader
+from .. import wrds
+from ..fetch_tools import get_text_file_from_url
 
 # %% auto 0
 __all__ = ['PROVIDER', 'URL', 'HOST_WEBSITE', 'FREQ', 'MIN_YEAR', 'MAX_YEAR', 'ENTITY_ID_IN_RAW_DSET', 'ENTITY_ID_IN_CLEAN_DSET',
-           'TIME_VAR_IN_RAW_DSET', 'TIME_VAR_IN_CLEAN_DSET', 'LABELS_FILE', 'variables', 'download', 'clean']
+           'TIME_VAR_IN_RAW_DSET', 'TIME_VAR_IN_CLEAN_DSET', 'list_all_vars', 'get_raw_data', 'process_raw_data']
 
 # %% ../../nbs/02_papers/hassan_etal_2019.ipynb 5
 PROVIDER = 'Tarek A. Hassan, Stephan Hollander, Laurence van Lent, Ahmed Tahoun, 2019'
@@ -22,37 +23,32 @@ ENTITY_ID_IN_RAW_DSET = 'gvkey'
 ENTITY_ID_IN_CLEAN_DSET = 'permno'
 TIME_VAR_IN_RAW_DSET = 'date'
 TIME_VAR_IN_CLEAN_DSET = 'Qdate'
-LABELS_FILE = RESOURCES/'compa_variable_descriptions.csv'
 
 # %% ../../nbs/02_papers/hassan_etal_2019.ipynb 6
-def variables():
-    """Names of key variables in the dataset. 
-    `company_name`,`hqcountrycode`,`isin`,`cusip`,`ticker` are also available but are omitted here to speed things up and save memory."""
-    
-    return ['gvkey','date','date_earningscall',
-            'PRisk','NPRisk','Risk',
-            'PSentiment','NPSentiment','Sentiment',
-            'PRiskT_economic','PRiskT_environment','PRiskT_trade','PRiskT_institutions','PRiskT_health','PRiskT_security','PRiskT_tax','PRiskT_technology']
+def list_all_vars(url: str=URL,
+                  delimiter: str='\t'):
+    df = get_text_file_from_url(url, nrows=1, delimiter=delimiter)
 
-# %% ../../nbs/02_papers/hassan_etal_2019.ipynb 8
-def download(url: str=URL, 
-            vars: list=variables(), # Which variables to download
+    return pd.DataFrame(list(df.columns), columns=['name'])
+
+# %% ../../nbs/02_papers/hassan_etal_2019.ipynb 9
+def get_raw_data(url: str=URL, 
             obs_limit: int=None, # How many rows to download. If None, all rows are downloaded
             delimiter: str='\t'
             ) -> pd.DataFrame:
     """Download raw data from `url`"""
-    
-    return dataloader.get_text_file_from_url(url, nrows=obs_limit, delimiter=delimiter, usecols=vars)
+
+    return get_text_file_from_url(url, nrows=obs_limit, delimiter=delimiter)
 
 # %% ../../nbs/02_papers/hassan_etal_2019.ipynb 12
-def clean(df: pd.DataFrame=None, # If None, will download using `download_raw`
-          gvkey_permno_link: bool|pd.DataFrame=True, # Whether to download permno or not. If DataFrame, must contain `permno`, `gvkey`, and `Qdate`
-          how: str='inner' # How to merge permno into `df` if `gvkey_permno_link` is not False
-          ) -> pd.DataFrame:
+def process_raw_data(
+        df: pd.DataFrame=None, # If None, will download using `download_raw`
+        gvkey_permno_link: bool|pd.DataFrame=True, # Whether to download permno or not. If DataFrame, must contain `permno`, `gvkey`, and `Qdate`
+        how: str='inner' # How to merge permno into `df` if `gvkey_permno_link` is not False
+) -> pd.DataFrame:
     """Converts `gvkey` to string and applies `pandasmore.setup_panel`. Adds `permno` if `gvkey_permno_link` is not False."""
 
-    if df is None: df = download()
-    else: df = df.copy()
+    df = df.copy()
 
     df['gvkey'] = df['gvkey'].astype('string').str.zfill(6)
     df['date'] = df['date'].astype('string')
@@ -70,6 +66,7 @@ def clean(df: pd.DataFrame=None, # If None, will download using `download_raw`
                         time_var='date', freq='Q',
                         panel_ids_toint=False,
                         drop_index_duplicates=True, duplicates_which_keep='last')
+    
     if not gvkey_permno_link: return df
     else:    
       if gvkey_permno_link is True: gvkey_permno_link = wrds.linking.gvkey_permno_q()

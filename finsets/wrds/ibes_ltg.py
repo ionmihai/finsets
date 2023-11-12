@@ -2,21 +2,17 @@
 
 # %% ../../nbs/01_wrds/06_ibes_ltg.ipynb 3
 from __future__ import annotations
-from pathlib import Path
 from typing import List
-import os
 
 import pandas as pd
-import numpy as np
 
 import pandasmore as pdm
 from . import wrds_api
-from .. import RESOURCES
 
 # %% auto 0
 __all__ = ['PROVIDER', 'URL', 'LIBRARY', 'TABLE', 'LINK_LIBRARY', 'LINK_TABLE', 'FREQ', 'MIN_YEAR', 'MAX_YEAR',
            'ENTITY_ID_IN_RAW_DSET', 'ENTITY_ID_IN_CLEAN_DSET', 'TIME_VAR_IN_RAW_DSET', 'TIME_VAR_IN_CLEAN_DSET',
-           'LABELS_FILE', 'raw_metadata', 'default_raw_vars', 'parse_varlist', 'download']
+           'list_all_vars', 'default_raw_vars', 'parse_varlist', 'get_raw_data']
 
 # %% ../../nbs/01_wrds/06_ibes_ltg.ipynb 4
 PROVIDER = 'Refinitiv via WRDS'
@@ -32,51 +28,31 @@ ENTITY_ID_IN_RAW_DSET = 'permno'
 ENTITY_ID_IN_CLEAN_DSET = 'permno'
 TIME_VAR_IN_RAW_DSET = 'date'
 TIME_VAR_IN_CLEAN_DSET = 'Mdate'
-LABELS_FILE = RESOURCES/'ibes_detu_epsus_variable_descriptions.csv'
 
 # %% ../../nbs/01_wrds/06_ibes_ltg.ipynb 5
-def raw_metadata() -> pd.DataFrame:
-    "Collects metadata from WRDS `{LIBRARY}.{TABLE}` table and merges it with variable labels from LABELS_FILE"
+def list_all_vars() -> pd.DataFrame:
+    "Collects names of all available variables from WRDS f`{LIBRARY}.{TABLE}`"
 
     try:
         db = wrds_api.Connection()
-        funda = db.describe_table(LIBRARY,TABLE)
-        nr_rows = db.get_row_count(LIBRARY,TABLE)
+        funda = db.describe_table(LIBRARY,TABLE).assign(wrds_library=LIBRARY, wrds_table=TABLE)
     finally:
         db.close()
 
-    meta = funda[['name','type']].copy()
-    meta['nr_rows'] = nr_rows
-    meta['wrds_library'] = LIBRARY
-    meta['wrds_table'] = TABLE
+    return funda[['name','type','wrds_library','wrds_table']]
 
-    # Get variable labels from LABELS_FILE
-    df = pd.read_csv(LABELS_FILE)
-    df['Variable Label'] = df.apply(lambda row: row['Description'].replace(row['Variable Name'].strip()+' -- ', ''), axis=1)
-    df['Variable Label'] = df.apply(lambda row: row['Variable Label'].replace( '(' + row['Variable Name'].strip() + ')', ''), axis=1)
-    df['Variable Name'] = df['Variable Name'].str.strip().str.lower()
-    df = df[['Variable Name', 'Variable Label']].copy()
-    df.columns = ['name','label']
-    
-    # Merge metadata and variable labels and clean up a bit
-    meta = meta.merge(df, how='left', on='name')
-    meta['output_of'] = 'wrds.ibes_ltg.download'
-    meta = pdm.order_columns(meta,these_first=['name','label','output_of'])
-    for v in list(meta.columns):
-        meta[v] = meta[v].astype('string')
-    
-    return meta
-
-# %% ../../nbs/01_wrds/06_ibes_ltg.ipynb 7
+# %% ../../nbs/01_wrds/06_ibes_ltg.ipynb 8
 def default_raw_vars():
     return ['ticker', 'value', 'fpi', 'anndats', 'fpedats', 'revdats', 'actdats', 'estimator', 'analys', 'pdf']
 
-# %% ../../nbs/01_wrds/06_ibes_ltg.ipynb 8
-def parse_varlist(vars: List[str]=None, #list of variables requested by user
-                  req_vars: List[str] = ['ticker', 'anndats'], #list of variables that will automatically get downloaded, even if not in `vars`
+# %% ../../nbs/01_wrds/06_ibes_ltg.ipynb 9
+def parse_varlist(vars: List[str]|str=None, #list of variables requested by user
+                  req_vars: List[str] = ['ticker', 'anndats'], #list of variables that will get downloaded, even if not in `vars`
                   prefix: str='a.', #string to add in front of each variable name when we build the SQL string of variable names
                   ) -> str:
-    """Add required variables to requested variables, validate them, and build the sql string with their names"""
+    """Adds required variables to requested variables, validates them, and builds the SQL string with their names"""
+
+    if vars=='*': return f'{prefix}*' 
 
     # Build full list of variables that will be downloaded
     if vars is None: vars = default_raw_vars()
@@ -84,14 +60,14 @@ def parse_varlist(vars: List[str]=None, #list of variables requested by user
     vars =  req_vars + [x for x in vars if x not in req_vars] #in case `vars` already contains some of the required variables
 
     # Validate variables to be downloaded (make sure that they are in the target database)
-    valid_vars = list(raw_metadata().name)
+    valid_vars = list(list_all_vars().name)
     invalid_vars = [v for v in vars if v not in valid_vars]
     if invalid_vars: raise ValueError(f"These vars are not in the database: {invalid_vars}") 
 
     return ','.join([f'{prefix}{var_name}' for var_name in vars])
 
-# %% ../../nbs/01_wrds/06_ibes_ltg.ipynb 9
-def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; `permno`, `ticker`, and `anndats` added by default
+# %% ../../nbs/01_wrds/06_ibes_ltg.ipynb 11
+def get_raw_data(vars: List[str]=None, # If None, downloads `default_raw_vars`; `permno`, `ticker`, and `anndats` added by default
              obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded
              start_date: str=None, # Start date in MM/DD/YYYY format
              end_date: str=None, #End date in MM/DD/YYYY format; if None, defaults to current date
@@ -99,7 +75,7 @@ def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; `per
              ) -> pd.DataFrame:
     """Downloads `vars` from `start_date` to `end_date` from WRDS `ibes.detu_epsus` library and adds PERMNO from CRSP"""
 
-    vars = parse_varlist(vars)
+    vars = parse_varlist(vars, prefix='a.')
 
     sql_string=f"""SELECT {vars}, b.permno
                         FROM {LIBRARY}.{TABLE} AS a

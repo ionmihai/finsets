@@ -2,23 +2,18 @@
 
 # %% ../../nbs/01_wrds/03_compa.ipynb 2
 from __future__ import annotations
-from pathlib import Path
 from typing import List
-import os
 
 import pandas as pd
 import numpy as np
 
 import pandasmore as pdm
 from . import wrds_api
-from .. import RESOURCES
 
 # %% auto 0
 __all__ = ['PROVIDER', 'URL', 'LIBRARY', 'TABLE', 'LINK_LIBRARY', 'LINK_TABLE', 'FREQ', 'MIN_YEAR', 'MAX_YEAR',
            'ENTITY_ID_IN_RAW_DSET', 'ENTITY_ID_IN_CLEAN_DSET', 'TIME_VAR_IN_RAW_DSET', 'TIME_VAR_IN_CLEAN_DSET',
-           'LABELS_FILE', 'raw_metadata', 'default_raw_vars', 'parse_varlist', 'download', 'clean', 'book_equity',
-           'tobin_q', 'issuance_vars', 'investment_vars', 'profitability_vars', 'cashflow_vars', 'liquidity_vars',
-           'leverage_vars', 'payout_vars']
+           'list_all_vars', 'default_raw_vars', 'parse_varlist', 'get_raw_data', 'process_raw_data', 'features']
 
 # %% ../../nbs/01_wrds/03_compa.ipynb 3
 PROVIDER = 'Wharton Research Data Services (WRDS)'
@@ -27,51 +22,29 @@ LIBRARY = 'comp'
 TABLE = 'funda'
 LINK_LIBRARY = 'crsp'
 LINK_TABLE = 'ccmxpf_lnkhist'
-FREQ = 'Y'
+FREQ = 'A'
 MIN_YEAR = 1950
 MAX_YEAR = None
-ENTITY_ID_IN_RAW_DSET = 'gvkey'
+ENTITY_ID_IN_RAW_DSET = 'permno'
 ENTITY_ID_IN_CLEAN_DSET = 'permno'
 TIME_VAR_IN_RAW_DSET = 'datadate'
-TIME_VAR_IN_CLEAN_DSET = 'Ydate'
-LABELS_FILE = RESOURCES/'compa_variable_descriptions.csv'
+TIME_VAR_IN_CLEAN_DSET = 'Adate'
 
 # %% ../../nbs/01_wrds/03_compa.ipynb 4
-def raw_metadata() -> pd.DataFrame:
-    "Collects metadata from WRDS f`{LIBRARY}.{TABLE}` and merges it variable labels from LABELS_FILE"
+def list_all_vars() -> pd.DataFrame:
+    "Collects names of all available variables from WRDS f`{LIBRARY}.{TABLE}`"
 
     try:
         db = wrds_api.Connection()
-        funda = db.describe_table(LIBRARY,TABLE)
-        nr_rows = db.get_row_count(LIBRARY,TABLE)
+        funda = db.describe_table(LIBRARY,TABLE).assign(wrds_library=LIBRARY, wrds_table=TABLE)
     finally:
         db.close()
 
-    meta = funda[['name','type']].copy()
-    meta['nr_rows'] = nr_rows
-    meta['wrds_library'] = LIBRARY
-    meta['wrds_table'] = TABLE
+    return funda[['name','type','wrds_library','wrds_table']]
 
-    # Get variable labels from LABELS_FILE
-    df = pd.read_csv(LABELS_FILE)
-    df['Variable Label'] = df.apply(lambda row: row['Description'].replace(row['Variable Name'].strip()+' -- ', ''), axis=1)
-    df['Variable Label'] = df.apply(lambda row: row['Variable Label'].replace( '(' + row['Variable Name'].strip() + ')', ''), axis=1)
-    df['Variable Name'] = df['Variable Name'].str.strip().str.lower()
-    df = df[['Variable Name', 'Variable Label']].copy()
-    df.columns = ['name','label']
-
-    # Merge metadata and variable labels and clean up a bit
-    meta = meta.merge(df, how='left', on='name')
-    meta['output_of'] = 'wrds.compa.download'
-    meta = pdm.order_columns(meta,these_first=['name','label','output_of'])
-    for v in list(meta.columns):
-        meta[v] = meta[v].astype('string')
-    
-    return meta
-
-# %% ../../nbs/01_wrds/03_compa.ipynb 6
+# %% ../../nbs/01_wrds/03_compa.ipynb 7
 def default_raw_vars():
-    """Default variables used in `download` if none are specified."""
+    """Defines default variables used in `get_raw_data` if none are specified."""
 
     return ['datadate', 'gvkey', 'cusip' ,'cik' ,'tic' ,'fyear' ,'fyr' ,'naicsh', 'sich' ,'exchg',  
             'lt' ,'at' ,'txditc' ,'pstkl' ,'pstkrv' ,'pstk' ,'csho' ,'ajex' , 'rdip',
@@ -82,12 +55,14 @@ def default_raw_vars():
             'tstk' ,'wcap' ,'rect' ,'xsga' ,'aqc' ,'oibdp' ,'dpact' ,'fic' ,'ni' ,'ivao' ,'ivst' ,
             'dv' , 'intan' ,'pi' ,'txfo' ,'pifo' ,'xpp' ,'drc' ,'drlt' ,'ap' ,'xacc' ,'itcb']             
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 8
-def parse_varlist(vars: List[str]=None, #list of variables requested by user
-                  req_vars: List[str] = ['gvkey', 'datadate'], #list of variables that will automatically get downloaded, even if not in `vars`
+# %% ../../nbs/01_wrds/03_compa.ipynb 9
+def parse_varlist(vars: List[str]|str=None, #list of variables requested by user
+                  req_vars: List[str] = ['gvkey', 'datadate'], #list of variables that will get downloaded, even if not in `vars`
                   prefix: str='a.', #string to add in front of each variable name when we build the SQL string of variable names
                   ) -> str:
-    """Add required variables to requested variables, validate them, and build the sql string with their names"""
+    """Adds required variables to requested variables, validates them, and builds the SQL string with their names"""
+
+    if vars=='*': return f'{prefix}*' 
 
     # Build full list of variables that will be downloaded
     if vars is None: vars = default_raw_vars()
@@ -95,21 +70,22 @@ def parse_varlist(vars: List[str]=None, #list of variables requested by user
     vars =  req_vars + [x for x in vars if x not in req_vars] #in case `vars` already contains some of the required variables
 
     # Validate variables to be downloaded (make sure that they are in the target database)
-    valid_vars = list(raw_metadata().name)
+    valid_vars = list(list_all_vars().name)
     invalid_vars = [v for v in vars if v not in valid_vars]
     if invalid_vars: raise ValueError(f"These vars are not in the database: {invalid_vars}") 
 
     return ','.join([f'{prefix}{var_name}' for var_name in vars])
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 9
-def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; else `permno`, `permco`, and `date` are added by default
-             obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded
-             start_date: str=None, # Start date in MM/DD/YYYY format
-             end_date: str=None #End date in MM/DD/YYYY format
-             ) -> pd.DataFrame:
+# %% ../../nbs/01_wrds/03_compa.ipynb 11
+def get_raw_data(
+        vars: List[str]=None, # If None, downloads `default_raw_vars`; use '*' to get all available variables
+        obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded
+        start_date: str=None, # Start date in MM/DD/YYYY format
+        end_date: str=None #End date in MM/DD/YYYY format
+) -> pd.DataFrame:
     """Downloads `vars` from `start_date` to `end_date` from WRDS `{LIBRARY}.{TABLE}` library and adds PERMNO and PERMCO as in CCM"""
-
-    vars = parse_varlist(vars)
+ 
+    vars = parse_varlist(vars, prefix='a.')
 
     sql_string=f"""SELECT b.lpermno as permno, b.lpermco as permco, b.liid as iid, {vars}
                     FROM {LIBRARY}.{TABLE} AS a
@@ -125,226 +101,70 @@ def download(vars: List[str]=None, # If None, downloads `default_raw_vars`; else
     return wrds_api.download(sql_string,
                              params={'start_date':start_date, 'end_date':end_date, 'obs_limit':obs_limit})
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 12
-def clean(df: pd.DataFrame=None,        # If None, downloads `vars` using `download` function; else, must contain `permno` and `datadate` columns
-          vars: List[str]=None,         # If None, downloads `default_raw_vars`
-          obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded
-          start_date: str="01/01/1900", # Start date in MM/DD/YYYY format
-          end_date: str=None,           # End date. Default is current date          
-          clean_kwargs: dict={},        # Params to pass to `pdm.setup_panel` other than `panel_ids`, `time_var`, and `freq`
-          ) -> pd.DataFrame:
-    """Applies `pandasmore.setup_panel` to `df`. If `df` is None, downloads `vars` using `download` function."""
+# %% ../../nbs/01_wrds/03_compa.ipynb 17
+def process_raw_data(
+        df: pd.DataFrame=None,  # Must contain `permno` and `datadate` columns         
+        clean_kwargs: dict={},  # Params to pass to `pdm.setup_panel` other than `panel_ids`, `time_var`, and `freq`
+) -> pd.DataFrame:
+    """Applies `pandasmore.setup_panel` to `df`"""
 
-    if df is None: df = download(vars=vars, obs_limit=obs_limit, start_date=start_date, end_date=end_date)
-    df = pdm.setup_panel(df, panel_ids=ENTITY_ID_IN_CLEAN_DSET, time_var=TIME_VAR_IN_RAW_DSET, freq=FREQ, **clean_kwargs)
+    df = pdm.setup_panel(df, panel_ids=ENTITY_ID_IN_RAW_DSET, time_var=TIME_VAR_IN_RAW_DSET, freq=FREQ, **clean_kwargs)
     return df 
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 17
-def book_equity(df: pd.DataFrame=None, # If None, downloads (and cleans) only required vars
-                add_itcb=False,
-                return_metadata: bool=False # If true, just returns metadata dictionary
-                ) -> pd.DataFrame:
+# %% ../../nbs/01_wrds/03_compa.ipynb 20
+def features(df: pd.DataFrame=None
+             ) -> pd.DataFrame:
 
-    metadata = {'inputs': {'wrds.compa.clean': ['at', 'lt', 'seq', 'ceq', 'txditc', 'pstk', 'pstkrv', 'pstkl', 'itcb']},
-                'outputs': ['bookeq','shreq','pref_stock'],
-                'labels': {'bookeq': 'Book equity', 'shreq': 'Shareholder equity', 'pref_stock': 'Preferred stock'}
-    }      
-    if return_metadata: return metadata
+    out = pd.DataFrame(index=df.index)
 
-    reqs = metadata['inputs']['wrds.compa.clean']
-    if df is None: df = clean(vars=reqs)
-    df = df[reqs].copy()
+    out['lag_at'] = pdm.lag(df['at'])
 
-    df['pstk'] = df['pstk'].fillna(0)
-    df['pref_stock'] = np.where(df['pstkrv'].isnull(), df['pstkl'], df['pstkrv'])
-    df['pref_stock'] = np.where(df['pref_stock'].isnull(),df['pstk'], df['pref_stock'])
+    # book equity vars
+    out['pstk0'] = df['pstk'].fillna(0)
+    out['pref_stock'] = np.where(df['pstkrv'].isnull(), df['pstkl'], df['pstkrv'])
+    out['pref_stock'] = np.where(out['pref_stock'].isnull(),out['pstk0'], out['pref_stock'])
+    out['shreq'] = np.where(df['seq'].isnull(), df['ceq'] + out['pstk0'], df['seq'])
+    out['shreq'] = np.where(out['shreq'].isnull(), df['at'] - df['lt'], out['shreq'])
+    out['bookeq'] = out['shreq'] + df['txditc'].fillna(0) - out['pref_stock']
+    out['bookeq_w_itcb'] = out['bookeq'] + df['itcb'].fillna(0)
 
-    df['shreq'] = np.where(df['seq'].isnull(), df['ceq'] + df['pstk'], df['seq'])
-    df['shreq'] = np.where(df['shreq'].isnull(), df['at'] - df['lt'], df['shreq'])
+    out['tobinq'] = (df['at'] - out['bookeq'] + df['prcc_f'] * df['csho']) / df['at']
 
-    df['bookeq'] = df['shreq'] + df['txditc'].fillna(0) - df['pref_stock']
-    if add_itcb: df['bookeq'] = df['bookeq'] + df['itcb'].fillna(0)
-    
-    return df[metadata['outputs']].copy()
+    # issuance vars
+    out['equityiss_tot'] = (pdm.rdiff(out['bookeq']) - pdm.rdiff(df['re'])) 
+    out['equityiss_cfs'] = (df['sstk'].fillna(0) - df['prstkc'].fillna(0))
+    out['debtiss_tot'] = (pdm.rdiff(df['at']) - pdm.rdiff(out['bookeq'])) 
+    out['debtiss_cfs'] = (df['dltis'].fillna(0) - df['dltr'].fillna(0)) 
+    out['debtiss_bs'] = (pdm.rdiff(df['dltt']) + pdm.rdiff(df['dlc'].fillna(0))) 
+    for v in ['equityiss_tot','equityiss_cfs','debtiss_tot','debtiss_cfs','debtiss_bs']:
+        out[f'{v}_2la'] = out[v] / out['lag_at']
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 24
-def tobin_q(df: pd.DataFrame=None,      # If None, downloads (and cleans) only required vars
-            return_metadata: bool=False # If True, just returns the metadata dictionary
-            ) -> pd.DataFrame:
+    # investment vars
+    out['ppent_pch'] = pdm.rpct_change(df['ppent'])
+    out['capx_2la'] = df['capx'] / out['lag_at']
 
-    metadata = {'inputs': {'wrds.compa.clean': ['at', 'lt', 'seq', 'ceq', 'txditc', 'pstk', 'pstkrv', 'pstkl', 'itcb','prcc_f','csho']},
-                'outputs':  ['tobinq'],
-                'labels': {'tobinq': 'Tobin Q'}
-    }      
-    if return_metadata: return metadata
+    # profitability vars
+    out['roa'] = df['ib'] / df['at']
 
-    reqs = metadata['inputs']['wrds.compa.clean']
-    if df is None: df = clean(vars=reqs)
-    df = df[reqs].copy()
+    # cash flow vars
+    out['cflow_is'] = (df['ib']+df['dp']) 
+    out['cflow_cfs'] = df['oancf'] 
+    out['cflow_full'] = np.where(df.dtdate.dt.year<1987, out['cflow_is'], out['cflow_cfs'])
+    for v in ['cflow_is','cflow_cfs','cflow_full']:
+        out[f'{v}_2la'] = out[v] / out['lag_at']
 
-    beq = book_equity(df)[['bookeq']].copy()
-    df = df.join(beq)
+    # liquidity vars
+    out['cash_2a'] = df['che'] / df['at']
 
-    df['tobinq'] = (df['at'] - df['bookeq'] + df['prcc_f'] * df['csho']) / df['at']
-    df = df.replace([np.inf, -np.inf], np.nan)
-    return  df[metadata['outputs']].copy()
+    # leverage vars
+    out['booklev'] = (df['dltt'] + df['dlc']) / df['at']
+    out.loc[out.booklev<0, 'booklev'] = 0
+    out.loc[out.booklev>1, 'booklev'] = 1
 
-# %% ../../nbs/01_wrds/03_compa.ipynb 29
-def issuance_vars(df: pd.DataFrame=None,        # If None, downloads (and cleans) only required vars
-                    return_metadata: bool=False # If True, just returns the metadata dictionary
-                    ) -> pd.DataFrame:
+    # payout vars
+    out['dividends_2la'] = df['dvc'].fillna(0) / out['lag_at']
+    out['repurchases_2la'] = df['prstkc'].fillna(0) / out['lag_at']
 
-    metadata = {'inputs': {'wrds.compa.clean': ['at', 'lt', 'seq', 'ceq', 'txditc', 'pstk', 'pstkrv', 'pstkl', 'itcb',
-                                                  'sstk','prstkc','dltis','dltr', 're', 'dlc','dltt']},
-                'outputs': ['equityiss_tot','equityiss_cfs', 'debtiss_tot', 'debtiss_cfs', 'debtiss_bs'],
-                'labels': {'equityiss_tot':'Equity issuance','equityiss_cfs':'Equity issuance', 
-                           'debtiss_tot':'Debt issuance', 'debtiss_cfs':'Debt issuance', 'debtiss_bs':'Debt issuance'}
-    }      
-    if return_metadata: return metadata
+    out = out.replace([np.inf, -np.inf], np.nan)
+    return out 
 
-    reqs = metadata['inputs']['wrds.compa.clean']
-    if df is None: df = clean(vars=reqs)
-    df = df[reqs].copy()
-
-    beq = book_equity(df)[['bookeq']].copy()
-    df = df.join(beq)
-    
-    df['lag_at'] = pdm.lag(df['at'])
-
-    df['equityiss_cfs'] = (df['sstk'].fillna(0) - df['prstkc'].fillna(0)) / df['lag_at']
-    df['debtiss_cfs'] = (df['dltis'].fillna(0) - df['dltr'].fillna(0)) / df['lag_at']
-
-    df['debtiss_bs'] = (pdm.rdiff(df['dltt']) + pdm.rdiff(df['dlc'].fillna(0))) / df['lag_at']
-
-    df['equityiss_tot'] = (pdm.rdiff(df['bookeq']) - pdm.rdiff(df['re'])) / df['lag_at']
-    df['debtiss_tot'] = (pdm.rdiff(df['at']) - pdm.rdiff(df['bookeq'])) / df['lag_at']
-    
-    df = df.replace([np.inf, -np.inf], np.nan)
-    return df[metadata['outputs']].copy()
-
-# %% ../../nbs/01_wrds/03_compa.ipynb 32
-def investment_vars(df: pd.DataFrame=None,      # If None, downloads (and cleans) only required vars
-                    return_metadata: bool=False # If True, just returns the metadata dictionary
-                    ) -> pd.DataFrame:
-
-    metadata = {'inputs': {'wrds.compa.clean': ['ppent','capx','at']},
-                'outputs': ['ppentpch','capx2la'],
-                'labels': {'ppentpch':'Pct change in net PPE','capx2la': 'CAPX to lagged assets'}
-    }      
-    if return_metadata: return metadata
-
-    reqs = metadata['inputs']['wrds.compa.clean']
-    if df is None: df = clean(vars=reqs)
-    df = df[reqs].copy()
-    
-    df['ppentpch'] = pdm.rpct_change(df['ppent'])
-    df['capx2la'] = df['capx'] / pdm.lag(df['at'])
-    df = df.replace([np.inf, -np.inf], np.nan)
-    return df[metadata['outputs']].copy()
-
-# %% ../../nbs/01_wrds/03_compa.ipynb 35
-def profitability_vars(df: pd.DataFrame=None,      # If None, downloads (and cleans) only required vars
-                        return_metadata: bool=False # If True, just returns the metadata dictionary
-                        ) -> pd.DataFrame:
-
-    metadata = {'inputs': {'wrds.compa.clean': ['ib','at']},
-                'outputs': ['roa'],
-                'labels': {'roa':'Return on assets'}
-    }      
-    if return_metadata: return metadata
-
-    reqs = metadata['inputs']['wrds.compa.clean']
-    if df is None: df = clean(vars=reqs)
-    df = df[reqs].copy()
-
-    df['roa'] = df['ib'] / df['at']
-    df = df.replace([np.inf, -np.inf], np.nan)
-    return df[metadata['outputs']].copy()
-
-# %% ../../nbs/01_wrds/03_compa.ipynb 38
-def cashflow_vars(df: pd.DataFrame=None,      # If None, downloads (and cleans) only required vars
-                        return_metadata: bool=False # If True, just returns the metadata dictionary
-                        ) -> pd.DataFrame:
-
-    metadata = {'inputs': {'wrds.compa.clean': ['dtdate','oancf','ib','dp','at']},
-                'outputs': ['cflow2la_is', 'cflow2la_cfs', 'cflow2la_full'],
-                'labels': {'cflow2la_is':'Cash flows to lagged assets', 
-                           'cflow2la_cfs':'Cash flows to lagged assets', 
-                           'cflow2la_full':'Cash flows to lagged assets'}
-    }      
-    if return_metadata: return metadata
-
-    reqs = metadata['inputs']['wrds.compa.clean']
-    if df is None: df = clean(vars=reqs)
-    df = df[reqs].copy()
-    
-    df['cflow2la_is'] = (df['ib']+df['dp']) / pdm.lag(df['at'])
-    df['cflow2la_cfs'] = df['oancf'] / pdm.lag(df['at'])
-    df['cflow2la_full'] = np.where(df.dtdate.dt.year<1987, df['cflow2la_is'], df['cflow2la_cfs'])
-
-    df = df.replace([np.inf, -np.inf], np.nan)    
-    return df[metadata['outputs']].copy()
-
-# %% ../../nbs/01_wrds/03_compa.ipynb 41
-def liquidity_vars(df: pd.DataFrame=None,      # If None, downloads (and cleans) only required vars
-                        return_metadata: bool=False # If True, just returns the metadata dictionary
-                        ) -> pd.DataFrame:
-
-    metadata = {'inputs': {'wrds.compa.clean': ['che','at']},
-                'outputs': ['cash2a'],
-                'labels': {'cash2a':'Cash holdings to assets'}
-    }      
-    if return_metadata: return metadata
-
-    reqs = metadata['inputs']['wrds.compa.clean']
-    if df is None: df = clean(vars=reqs)
-    df = df[reqs].copy()
-
-    df['cash2a'] = df['che'] / df['at']
-
-    df = df.replace([np.inf, -np.inf], np.nan) 
-    return df[metadata['outputs']].copy()
-
-# %% ../../nbs/01_wrds/03_compa.ipynb 44
-def leverage_vars(df: pd.DataFrame=None,      # If None, downloads (and cleans) only required vars
-                        return_metadata: bool=False # If True, just returns the metadata dictionary
-                        ) -> pd.DataFrame:
-
-    metadata = {'inputs': {'wrds.compa.clean': ['dltt','dlc','at']},
-                'outputs': ['booklev'],
-                'labels': {'booklev':'Book leverage'}
-    }      
-    if return_metadata: return metadata
-
-    reqs = metadata['inputs']['wrds.compa.clean']
-    if df is None: df = clean(vars=reqs)
-    df = df[reqs].copy()
-
-    df['booklev'] = (df['dltt'] + df['dlc']) / df['at']
-    df.loc[df.booklev<0, 'booklev'] = 0
-    df.loc[df.booklev>1, 'booklev'] = 1
-    
-    df = df.replace([np.inf, -np.inf], np.nan)         
-    return df[metadata['outputs']].copy()
-
-# %% ../../nbs/01_wrds/03_compa.ipynb 47
-def payout_vars(df: pd.DataFrame=None,      # If None, downloads (and cleans) only required vars
-                        return_metadata: bool=False # If True, just returns the metadata dictionary
-                        ) -> pd.DataFrame:
-
-    metadata = {'inputs': {'wrds.compa.clean': ['dvc','prstkc','at']},
-                'outputs': ['div2la','rep2la'],
-                'labels': {'div2la': 'Dividends to lagged assets',
-                           'rep2la': 'Repurchases to lagged assets'}
-    }      
-    if return_metadata: return metadata
-
-    reqs = metadata['inputs']['wrds.compa.clean']
-    if df is None: df = clean(vars=reqs)
-    df = df[reqs].copy()
-
-    df['div2la'] = df['dvc'].fillna(0) / pdm.lag(df['at'])
-    df['rep2la'] = df['prstkc'].fillna(0) / pdm.lag(df['at'])
-
-    df = df.replace([np.inf, -np.inf], np.nan) 
-    return df[metadata['outputs']].copy()
