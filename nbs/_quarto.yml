@@ -23,12 +23,6 @@ website:
     contents:
       - text: "finsets"
         href: index.ipynb
-      - text: "metadata"
-        href: 00_metadata.ipynb
-      - text: "storage"
-        href: 01_storage.ipynb
-      - text: "dataloader"
-        href: 02_dataloader.ipynb
       - section: FRED
         contents: 00_fred/*
       - section: WRDS

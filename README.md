@@ -6,9 +6,11 @@
 
 Each module handles a different data source. Almost all submodules
 (other than utility ones) have a
-[`download`](https://ionmihai.github.io/finsets/01_wrds/wrds_api.html#download)
-function that downloads the raw data and a `clean` function that
-processes the data into a `pandas.DataFrame` having, as index, either:
+[`get_raw_data`](https://ionmihai.github.io/finsets/01_wrds/ratios.html#get_raw_data)
+function that downloads the raw data and a
+[`process_raw_data`](https://ionmihai.github.io/finsets/01_wrds/ratios.html#process_raw_data)
+function that processes the data into a `pandas.DataFrame` having, as
+index, either:
 
 - A `pandas.Period` date reflecting the frequency of the data (for
   time-series datasets), or
