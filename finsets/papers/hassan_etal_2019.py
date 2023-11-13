@@ -44,13 +44,13 @@ def get_raw_data(url: str=URL,
 def process_raw_data(
         df: pd.DataFrame=None, # If None, will download using `download_raw`
         gvkey_permno_link: bool|pd.DataFrame=True, # Whether to download permno or not. If DataFrame, must contain `permno`, `gvkey`, and `Qdate`
-        how: str='inner' # How to merge permno into `df` if `gvkey_permno_link` is not False
+        how: str='left' # How to merge permno into `df` if `gvkey_permno_link` is not False
 ) -> pd.DataFrame:
     """Converts `gvkey` to string and applies `pandasmore.setup_panel`. Adds `permno` if `gvkey_permno_link` is not False."""
 
     df = df.copy()
 
-    df['gvkey'] = df['gvkey'].astype('string').str.zfill(6)
+    df['gvkey'] = df['gvkey'].astype('string').str.zfill(6) #prepend 0's up to len 6
     df['date'] = df['date'].astype('string')
 
     # Format date variable so it can be converted into datetime (as the last day of the quarter)

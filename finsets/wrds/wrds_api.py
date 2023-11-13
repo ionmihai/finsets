@@ -575,7 +575,7 @@ ORDER BY 1;
             else:
                 full_df = pd.DataFrame()
                 for chunk in df:
-                    full_df = pd.concat([full_df, chunk])
+                    full_df = pd.concat([full_df, chunk], ignore_index=True)
                 return full_df
         except sa.exc.ProgrammingError as e:
             raise e
