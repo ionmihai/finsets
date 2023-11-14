@@ -33,11 +33,11 @@ def list_all_vars() -> pd.DataFrame:
 
     try:
         db = wrds_api.Connection()
-        funda = db.describe_table(LIBRARY,TABLE)
+        funda = db.describe_table(LIBRARY,TABLE).assign(wrds_library=LIBRARY, wrds_table=TABLE)
     finally:
         db.close()
 
-    return funda[['name']]
+    return funda[['name','type','wrds_library','wrds_table']]
 
 # %% ../../nbs/01_wrds/05_ratios.ipynb 8
 def get_raw_data(vars: List[str]=None, # If None or '*', downloads all variables

@@ -47,7 +47,7 @@ def default_raw_vars():
 
 # %% ../../nbs/01_wrds/06_ibes_ltg.ipynb 9
 def parse_varlist(vars: List[str]|str=None, #list of variables requested by user
-                  req_vars: List[str] = ['ticker', 'anndats'], #list of variables that will get downloaded, even if not in `vars`
+                  required_vars: List[str] = [], #list of variables that will get downloaded, even if not in `vars`
                   prefix: str='a.', #string to add in front of each variable name when we build the SQL string of variable names
                   ) -> str:
     """Adds required variables to requested variables, validates them, and builds the SQL string with their names"""
@@ -56,8 +56,8 @@ def parse_varlist(vars: List[str]|str=None, #list of variables requested by user
 
     # Build full list of variables that will be downloaded
     if vars is None: vars = default_raw_vars()
-    if req_vars is None: req_vars = []
-    vars =  req_vars + [x for x in vars if x not in req_vars] #in case `vars` already contains some of the required variables
+    if required_vars is None: req_vars = []
+    vars =  required_vars + [x for x in vars if x not in required_vars] #in case `vars` already contains some of the required variables
 
     # Validate variables to be downloaded (make sure that they are in the target database)
     valid_vars = list(list_all_vars().name)
@@ -68,6 +68,7 @@ def parse_varlist(vars: List[str]|str=None, #list of variables requested by user
 
 # %% ../../nbs/01_wrds/06_ibes_ltg.ipynb 11
 def get_raw_data(vars: List[str]=None, # If None, downloads `default_raw_vars`; `permno`, `ticker`, and `anndats` added by default
+            required_vars: List[str] = ['ticker', 'anndats'], #list of variables that will get downloaded, even if not in `vars`
              obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded
              start_date: str=None, # Start date in MM/DD/YYYY format
              end_date: str=None, #End date in MM/DD/YYYY format; if None, defaults to current date
@@ -75,7 +76,7 @@ def get_raw_data(vars: List[str]=None, # If None, downloads `default_raw_vars`; 
              ) -> pd.DataFrame:
     """Downloads `vars` from `start_date` to `end_date` from WRDS `ibes.detu_epsus` library and adds PERMNO from CRSP"""
 
-    vars = parse_varlist(vars, prefix='a.')
+    vars = parse_varlist(vars, prefix='a.', required_vars=required_vars)
 
     sql_string=f"""SELECT {vars}, b.permno
                         FROM {LIBRARY}.{TABLE} AS a
