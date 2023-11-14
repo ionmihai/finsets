@@ -22,7 +22,7 @@ MAX_YEAR = 2022
 ENTITY_ID_IN_RAW_DSET = 'gvkey'
 ENTITY_ID_IN_CLEAN_DSET = 'permno'
 TIME_VAR_IN_RAW_DSET = 'date'
-TIME_VAR_IN_CLEAN_DSET = 'Qdate'
+TIME_VAR_IN_CLEAN_DSET = f'{FREQ}date'
 
 # %% ../../nbs/02_papers/hassan_etal_2019.ipynb 6
 def list_all_vars(url: str=URL,

@@ -29,7 +29,7 @@ MAX_YEAR = None
 ENTITY_ID_IN_RAW_DSET = 'permno'
 ENTITY_ID_IN_CLEAN_DSET = 'permno'
 TIME_VAR_IN_RAW_DSET = 'datadate'
-TIME_VAR_IN_CLEAN_DSET = 'Adate'
+TIME_VAR_IN_CLEAN_DSET = f'{FREQ}date'
 
 # %% ../../nbs/01_wrds/03_compa_ccm.ipynb 4
 def list_all_vars() -> pd.DataFrame:
@@ -132,7 +132,14 @@ def features(df: pd.DataFrame=None
 
     out = pd.DataFrame(index=df.index)
 
+    # industry 
+    out['sic_full'] = np.where(df['sich'].isna(), df['sic'], df['sich'])
+    out['naics_full'] = np.where(df['naicsh'].isna(), df['naics'], df['sich'])
+
+    # size 
+    out['stock_price'] = np.abs(df['prcc_f'])
     out['lag_at'] = pdm.lag(df['at'])
+    out['mktcap'] = out['stock_price'] * df['csho']
 
     # book equity vars
     out['pstk0'] = df['pstk'].fillna(0)
@@ -143,7 +150,7 @@ def features(df: pd.DataFrame=None
     out['bookeq'] = out['shreq'] + df['txditc'].fillna(0) - out['pref_stock']
     out['bookeq_w_itcb'] = out['bookeq'] + df['itcb'].fillna(0)
 
-    out['tobinq'] = (df['at'] - out['bookeq'] + df['prcc_f'] * df['csho']) / df['at']
+    out['tobinq'] = (df['at'] - out['bookeq'] + out['mktcap']) / df['at']
 
     # issuance vars
     out['equityiss_tot'] = (pdm.rdiff(out['bookeq']) - pdm.rdiff(df['re'])) 
@@ -177,8 +184,8 @@ def features(df: pd.DataFrame=None
     out.loc[out.booklev>1, 'booklev'] = 1
 
     # payout vars
-    out['dividends_2la'] = df['dvc'].fillna(0) / out['lag_at']
-    out['repurchases_2la'] = df['prstkc'].fillna(0) / out['lag_at']
+    out['dividends_2la'] = (df['dvc'].fillna(0) + df['dvp'].fillna(0)) / out['lag_at']
+    out['repurchases_2la'] = (df['prstkc'].fillna(0) - pdm.rdiff(df['pstkrv']).fillna(0)) / out['lag_at']
 
     out = out.replace([np.inf, -np.inf], np.nan)
     return out 

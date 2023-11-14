@@ -27,7 +27,7 @@ MAX_YEAR = None
 ENTITY_ID_IN_RAW_DSET = 'permno'
 ENTITY_ID_IN_CLEAN_DSET = 'permno'
 TIME_VAR_IN_RAW_DSET = 'date'
-TIME_VAR_IN_CLEAN_DSET = 'Mdate'
+TIME_VAR_IN_CLEAN_DSET = f'{FREQ}date'
 
 # %% ../../nbs/01_wrds/06_ibes_ltg.ipynb 5
 def list_all_vars() -> pd.DataFrame:
