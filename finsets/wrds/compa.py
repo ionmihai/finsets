@@ -93,6 +93,7 @@ def get_raw_data(
 ) -> pd.DataFrame:
     """Downloads `vars` from `start_date` to `end_date` from WRDS `{LIBRARY}.{TABLE}` library """
  
+    wrds_api.validate_dates([start_date, end_date])
     vars = parse_varlist(vars, required_vars=required_vars)
 
     sql_string=f"""SELECT  {vars}  

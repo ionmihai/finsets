@@ -47,6 +47,7 @@ def get_raw_data(vars: List[str]=None, # If None or '*', downloads all variables
              ) -> pd.DataFrame:
     """Downloads `vars` from `start_date` to `end_date` from WRDS `{LIBRARY}.{TABLE}` library"""
 
+    wrds_api.validate_dates([start_date, end_date])
     if vars is None or vars=='*': vars = '*'
     else: vars = ','.join(['public_date','permno'] + [f'{x}' for x in vars if x not in ['public_date', 'permno']])
 

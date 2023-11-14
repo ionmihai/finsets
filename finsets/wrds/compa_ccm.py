@@ -95,6 +95,7 @@ def get_raw_data(
 ) -> pd.DataFrame:
     """Downloads `vars` from `start_date` to `end_date` from WRDS `{LIBRARY}.{TABLE}` library and adds PERMNO and PERMCO as in CCM"""
  
+    wrds_api.validate_dates([start_date, end_date])
     vars = parse_varlist(vars, required_vars=required_vars)
 
     sql_string=f"""SELECT c.lpermno as permno, c.lpermco as permco, c.liid, c.linkprim as linkprim, {vars}

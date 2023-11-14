@@ -69,13 +69,14 @@ def parse_varlist(vars: List[str]|str=None, #list of variables requested by user
 # %% ../../nbs/01_wrds/06_ibes_ltg.ipynb 11
 def get_raw_data(vars: List[str]=None, # If None, downloads `default_raw_vars`; `permno`, `ticker`, and `anndats` added by default
             required_vars: List[str] = ['ticker', 'anndats'], #list of variables that will get downloaded, even if not in `vars`
-             obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded
+             nrows: int=None, #Number of rows to download. If None, full dataset will be downloaded
              start_date: str=None, # Start date in MM/DD/YYYY format
              end_date: str=None, #End date in MM/DD/YYYY format; if None, defaults to current date
              permno_match_score: tuple=(1,), #accuracy of permno-ibes link. 1-6. 1 is best. use >1 with caution.
              ) -> pd.DataFrame:
     """Downloads `vars` from `start_date` to `end_date` from WRDS `ibes.detu_epsus` library and adds PERMNO from CRSP"""
 
+    wrds_api.validate_dates([start_date, end_date])
     vars = parse_varlist(vars, prefix='a.', required_vars=required_vars)
 
     sql_string=f"""SELECT {vars}, b.permno
@@ -88,8 +89,8 @@ def get_raw_data(vars: List[str]=None, # If None, downloads `default_raw_vars`; 
     if permno_match_score is not None: sql_string += r" AND score IN %(permno_match_score)s"
     if start_date is not None: sql_string += r" AND anndats >= %(start_date)s"
     if end_date is not None: sql_string += r" AND anndats <= %(end_date)s"
-    if obs_limit is not None: sql_string += r" LIMIT %(obs_limit)s"
+    if nrows is not None: sql_string += r" LIMIT %(nrows)s"
 
     return wrds_api.download(sql_string,
                              params={'permno_match_score': permno_match_score,
-                                 'start_date':start_date, 'end_date':end_date, 'obs_limit':obs_limit})
+                                 'start_date':start_date, 'end_date':end_date, 'nrows':nrows})

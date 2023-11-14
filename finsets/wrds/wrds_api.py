@@ -2,18 +2,20 @@
 
 # %% auto 0
 __all__ = ['wrds_version', 'appname', 'WRDS_POSTGRES_HOST', 'WRDS_POSTGRES_PORT', 'WRDS_POSTGRES_DB', 'WRDS_CONNECT_ARGS',
-           'NotSubscribedError', 'SchemaNotFoundError', 'Connection', 'download']
+           'NotSubscribedError', 'SchemaNotFoundError', 'Connection', 'download', 'validate_dates']
 
 # %% ../../nbs/01_wrds/00_wrds_api.ipynb 3
-from typing import Sequence
+from typing import Sequence, List
 import getpass
 import os
 import sys
+from sys import version_info
 import stat
+from datetime import datetime
+
 import pandas as pd
 import sqlalchemy as sa
 import urllib.parse
-from sys import version_info
 
 # %% ../../nbs/01_wrds/00_wrds_api.ipynb 4
 wrds_version = '3.1.16'
@@ -677,3 +679,12 @@ def download(sql_string: str=None,
         db.close()
 
     return df
+
+# %% ../../nbs/01_wrds/00_wrds_api.ipynb 17
+def validate_dates(date_strings: List[str]) -> bool:
+    for date in date_strings:
+        if date is not None:
+            try:
+                datetime.strptime(date, '%m/%d/%Y')
+            except ValueError:
+                raise ValueError(f"Date '{date}' is not in the correct format. Should be 'mm/dd/yyyy'")

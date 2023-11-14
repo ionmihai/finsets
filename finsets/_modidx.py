@@ -146,4 +146,6 @@ d = { 'settings': { 'branch': 'main',
                                                                                      'finsets/wrds/wrds_api.py'),
                                        'finsets.wrds.wrds_api.SchemaNotFoundError': ( '01_wrds/wrds_api.html#schemanotfounderror',
                                                                                       'finsets/wrds/wrds_api.py'),
-                                       'finsets.wrds.wrds_api.download': ('01_wrds/wrds_api.html#download', 'finsets/wrds/wrds_api.py')}}}
+                                       'finsets.wrds.wrds_api.download': ('01_wrds/wrds_api.html#download', 'finsets/wrds/wrds_api.py'),
+                                       'finsets.wrds.wrds_api.validate_dates': ( '01_wrds/wrds_api.html#validate_dates',
+                                                                                 'finsets/wrds/wrds_api.py')}}}
