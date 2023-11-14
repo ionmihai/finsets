@@ -11,7 +11,7 @@ import pandasmore as pdm
 from . import wrds_api
 
 # %% auto 0
-__all__ = ['PROVIDER', 'URL', 'LIBRARY', 'TABLE', 'LINK_LIBRARY', 'LINK_TABLE', 'FREQ', 'MIN_YEAR', 'MAX_YEAR',
+__all__ = ['PROVIDER', 'URL', 'LIBRARY', 'TABLE', 'LINK_LIBRARY', 'LINK_TABLE', 'COMPANY_TABLE', 'FREQ', 'MIN_YEAR', 'MAX_YEAR',
            'ENTITY_ID_IN_RAW_DSET', 'ENTITY_ID_IN_CLEAN_DSET', 'TIME_VAR_IN_RAW_DSET', 'TIME_VAR_IN_CLEAN_DSET',
            'list_all_vars', 'default_raw_vars', 'parse_varlist', 'get_raw_data', 'process_raw_data', 'features']
 
@@ -22,6 +22,7 @@ LIBRARY = 'comp'
 TABLE = 'funda'
 LINK_LIBRARY = 'crsp'
 LINK_TABLE = 'ccmxpf_lnkhist'
+COMPANY_TABLE = 'company'
 FREQ = 'A'
 MIN_YEAR = 1950
 MAX_YEAR = None
@@ -32,66 +33,76 @@ TIME_VAR_IN_CLEAN_DSET = 'Adate'
 
 # %% ../../nbs/01_wrds/03_compa_ccm.ipynb 4
 def list_all_vars() -> pd.DataFrame:
-    "Collects names of all available variables from WRDS f`{LIBRARY}.{TABLE}`"
+    "Collects names of all available variables from WRDS f`{LIBRARY}.{TABLE}` and `{LIBRARY}.{COMPANY_TABLE}`."
 
     try:
         db = wrds_api.Connection()
         funda = db.describe_table(LIBRARY,TABLE).assign(wrds_library=LIBRARY, wrds_table=TABLE)
+        fundn = db.describe_table(LIBRARY,COMPANY_TABLE).assign(wrds_library=LIBRARY, wrds_table=COMPANY_TABLE)
     finally:
         db.close()
 
-    return funda[['name','type','wrds_library','wrds_table']]
+    return pd.concat([funda,fundn])[['name','type','wrds_library','wrds_table']].copy()
 
 # %% ../../nbs/01_wrds/03_compa_ccm.ipynb 7
 def default_raw_vars():
     """Defines default variables used in `get_raw_data` if none are specified."""
 
-    return ['datadate', 'gvkey', 'cusip' ,'cik' ,'tic' ,'fyear' ,'fyr' ,'naicsh', 'sich' ,'exchg',  
+    return ['datadate', 'gvkey', 'cusip' ,'cik' ,'tic' ,'fyear' ,'fyr' , 'fic',
+            'naicsh', 'sich' , 'sic', 'naics', 'exchg',  
             'lt' ,'at' ,'txditc' ,'pstkl' ,'pstkrv' ,'pstk' ,'csho' ,'ajex' , 'rdip',
             'act' ,'dvc' ,'xad','seq' ,'che' ,'lct' ,'dlc' ,'ib' ,'dvp' ,'txdi' ,'dp' ,
             'txp' ,'oancf' ,'ivncf' ,'fincf' ,'dltt' ,'mib','ceq' ,'invt' ,'cogs' , 'revt',
             'sale' ,'capx' ,'xrd' ,'txdb' ,'prcc_f' ,'sstk' ,'prstkc' ,'dltis' ,'dltr' ,'emp' ,
             'dd1' ,'ppegt' ,'ppent' ,'xint' ,'txt' ,'sppe' ,'gdwl' ,'xrent' ,'re' ,'dvpsx_f' ,
-            'tstk' ,'wcap' ,'rect' ,'xsga' ,'aqc' ,'oibdp' ,'dpact' ,'fic' ,'ni' ,'ivao' ,'ivst' ,
+            'tstk' ,'wcap' ,'rect' ,'xsga' ,'aqc' ,'oibdp' ,'dpact','ni' ,'ivao' ,'ivst' ,
             'dv' , 'intan' ,'pi' ,'txfo' ,'pifo' ,'xpp' ,'drc' ,'drlt' ,'ap' ,'xacc' ,'itcb']             
 
 # %% ../../nbs/01_wrds/03_compa_ccm.ipynb 9
-def parse_varlist(vars: List[str]|str=None, #list of variables requested by user
-                  req_vars: List[str] = ['gvkey', 'iid', 'datadate'], #list of variables that will get downloaded, even if not in `vars`
-                  prefix: str='a.', #string to add in front of each variable name when we build the SQL string of variable names
+def parse_varlist(vars: List[str]=None,
+                  required_vars = [],
                   ) -> str:
-    """Adds required variables to requested variables, validates them, and builds the SQL string with their names"""
+    """Figures out which `vars` come from the `{LIBRARY}.{TABLE}` table and which come from the `{LIBRARY}.{COMPANY_TABLE}` table and adds a. and b. prefixes to variable names to feed into an SQL query"""
 
-    if vars=='*': return f'{prefix}*' 
+    # Get all available variables and add suffixes needed for the SQL query
+    suffix_mapping = {TABLE: 'a.', COMPANY_TABLE: 'b.'}
+    all_avail_vars = list_all_vars().drop_duplicates(subset='name',keep='first').copy()
+    all_avail_vars['w_prefix'] = all_avail_vars.apply(lambda row: suffix_mapping[row['wrds_table']] + row['name'] , axis=1)
 
-    # Build full list of variables that will be downloaded
+    if vars == '*': return ','.join(list(all_avail_vars['w_prefix']))
+    
+    # Add required vars to requested vars
     if vars is None: vars = default_raw_vars()
-    if req_vars is None: req_vars = []
-    vars =  req_vars + [x for x in vars if x not in req_vars] #in case `vars` already contains some of the required variables
+    vars_to_get =  required_vars + [x for x in list(set(vars)) if x not in required_vars]
 
     # Validate variables to be downloaded (make sure that they are in the target database)
-    valid_vars = list(list_all_vars().name)
-    invalid_vars = [v for v in vars if v not in valid_vars]
+    invalid_vars = [v for v in vars_to_get if v not in list(all_avail_vars.name)]
     if invalid_vars: raise ValueError(f"These vars are not in the database: {invalid_vars}") 
 
-    return ','.join([f'{prefix}{var_name}' for var_name in vars])
+    # Extract information on which variable comes from which wrds table, so we know what prefix to use
+    vars_to_get = pd.DataFrame(vars_to_get, columns=['name'])
+    get_these = vars_to_get.merge(all_avail_vars, how = 'left', on = 'name')
+        
+    return ','.join(list(get_these['w_prefix']))
 
 # %% ../../nbs/01_wrds/03_compa_ccm.ipynb 11
 def get_raw_data(
         vars: List[str]=None, # If None, downloads `default_raw_vars`; use '*' to get all available variables
+        required_vars: List[str]=['gvkey','datadate'], #list of variables that will get downloaded, even if not in `vars`
         nrows: int=None, #Number of rows to download. If None, full dataset will be downloaded
         start_date: str=None, # Start date in MM/DD/YYYY format
         end_date: str=None #End date in MM/DD/YYYY format
 ) -> pd.DataFrame:
     """Downloads `vars` from `start_date` to `end_date` from WRDS `{LIBRARY}.{TABLE}` library and adds PERMNO and PERMCO as in CCM"""
  
-    vars = parse_varlist(vars, prefix='a.')
+    vars = parse_varlist(vars, required_vars=required_vars)
 
-    sql_string=f"""SELECT b.lpermno as permno, b.lpermco as permco, b.liid, b.linkprim as linkprim, {vars}
+    sql_string=f"""SELECT c.lpermno as permno, c.lpermco as permco, c.liid, c.linkprim as linkprim, {vars}
                     FROM {LIBRARY}.{TABLE} AS a
-                    INNER JOIN {LINK_LIBRARY}.{LINK_TABLE} AS b ON a.gvkey = b.gvkey 
-                    WHERE datadate BETWEEN b.linkdt AND COALESCE(b.linkenddt, CURRENT_DATE)
-                            AND b.linktype IN ('LU','LC') 
+                    LEFT JOIN {LIBRARY}.{COMPANY_TABLE} AS b ON a.gvkey = b.gvkey 
+                    INNER JOIN {LINK_LIBRARY}.{LINK_TABLE} AS c ON a.gvkey = c.gvkey 
+                    WHERE datadate BETWEEN c.linkdt AND COALESCE(c.linkenddt, CURRENT_DATE)
+                            AND c.linktype IN ('LU','LC') 
                             AND indfmt='INDL' AND datafmt='STD' AND popsrc='D' AND consol='C'
                 """
     if start_date is not None: sql_string += r" AND datadate >= %(start_date)s"

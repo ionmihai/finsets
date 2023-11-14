@@ -37,13 +37,13 @@ def list_all_vars() -> pd.DataFrame:
 
     try:
         db = wrds_api.Connection()
-        msf = db.describe_table(LIBRARY,TABLE).assign(table=TABLE)
-        mse = db.describe_table(LIBRARY,NAMES_TABLE).assign(table=NAMES_TABLE)
-        dlst = db.describe_table(LIBRARY,DELIST_TABLE).assign(table=DELIST_TABLE)
+        msf = db.describe_table(LIBRARY,TABLE).assign(wrds_library=LIBRARY, wrds_table=TABLE)
+        mse = db.describe_table(LIBRARY,NAMES_TABLE).assign(wrds_library=LIBRARY, wrds_table=NAMES_TABLE)
+        dlst = db.describe_table(LIBRARY,DELIST_TABLE).assign(wrds_library=LIBRARY, wrds_table=DELIST_TABLE)
     finally:
         db.close()
 
-    return pd.concat([msf, mse, dlst])[['name','table', 'type']].copy() #.drop_duplicates(keep='first')
+    return pd.concat([msf, mse, dlst])[['name','type','wrds_library','wrds_table']].copy()
 
 # %% ../../nbs/01_wrds/01_crspm.ipynb 9
 def default_raw_vars():
@@ -56,14 +56,14 @@ def default_raw_vars():
 
 # %% ../../nbs/01_wrds/01_crspm.ipynb 11
 def parse_varlist(vars: List[str]=None,
-                  required_vars = ['permno','permco','date','ret','exchcd','dlret','dlstcd','dlstdt'],
+                  required_vars = [],
                   ) -> str:
     """Figures out which `vars` come from the `{LIBRARY}.{TABLE}` table and which come from the `{LIBRARY}.{NAMES_TABLE}` table and adds a. and b. prefixes to variable names to feed into an SQL query"""
 
     # Get all available variables and add suffixes needed for the SQL query
     suffix_mapping = {TABLE: 'a.', NAMES_TABLE: 'b.', DELIST_TABLE: 'c.'}
     all_avail_vars = list_all_vars().drop_duplicates(subset='name',keep='first').copy()
-    all_avail_vars['w_prefix'] = all_avail_vars.apply(lambda row: suffix_mapping[row['table']] + row['name'] , axis=1)
+    all_avail_vars['w_prefix'] = all_avail_vars.apply(lambda row: suffix_mapping[row['wrds_table']] + row['name'] , axis=1)
 
     if vars == '*': return ','.join(list(all_avail_vars['w_prefix']))
     
@@ -84,13 +84,14 @@ def parse_varlist(vars: List[str]=None,
 # %% ../../nbs/01_wrds/01_crspm.ipynb 14
 def get_raw_data(
         vars: List[str]=None, # If None, downloads `default_raw_vars`; use '*' to get all available variables
+        required_vars = ['permno','date'], # Variables that are always downloaded, regardless `vars` argument
         nrows: int=None,  #Number of rows to download. If None, full dataset will be downloaded             
         start_date: str=None,          # Start date in MM/DD/YYYY format
         end_date: str=None,            # End date in MM/DD/YYYY format  
 ) -> pd.DataFrame:
     "Downloads `vars` from `start_date` to `end_date` from WRDS {LIBRARY}.{TABLE}, {LIBRARY}.{NAMES_TABLE} and {LIBRARY}.{DELIST_TABLE}." 
 
-    varlist_string = parse_varlist(vars)
+    varlist_string = parse_varlist(vars, required_vars=required_vars)
     sql_string = f"""SELECT {varlist_string}
                         FROM {LIBRARY}.{TABLE} AS a 
                         LEFT JOIN {LIBRARY}.{NAMES_TABLE} AS b
@@ -120,8 +121,8 @@ def process_raw_data(
 
 # %% ../../nbs/01_wrds/01_crspm.ipynb 20
 def delist_adj_ret(
-        df: pd.DataFrame, # Requires `ret`,`exchcd`, `dlret`, and `dlstcd` variables
-        adj_ret_var: str='ret_adj'
+        df: pd.DataFrame, # Requires `ret`,`exchcd`,`dlret`,`dlstcd`, and `dlstdt` variables
+        adj_ret_var: str='ret_adj' # Name of the adjusted return variable created by this function
 ) -> pd.DataFrame:
     """Adjusts for returns for delisting using Shumway and Warther (1999) and Johnson and Zhao (2007)"""
 
