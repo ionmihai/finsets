@@ -220,4 +220,3 @@ def features(df: pd.DataFrame=None
     
     out = out.replace([np.inf, -np.inf], np.nan)
     return out 
-
