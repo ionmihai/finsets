@@ -166,9 +166,14 @@ def features(df: pd.DataFrame=None
     # convert ytd variables to quarterly
     out = ytd_to_quarterly(df, suffix='_q')
 
-    # industry
-    out['sic_full'] = df['sic']
-    out['naics_full'] = df['naics']
+    # industry 
+    out['sich_str'] = df['sich'].astype('Int64').astype('string').str.zfill(4)
+    out['naicsh_str'] = df['naicsh'].astype('Int64').astype('string')
+    out['sic_str'] = df['sic'].astype('string')
+    out['naics_str'] = df['naics'].astype('string')
+
+    out['sic_full'] = out['sich_str'].fillna(out['sic_str'])
+    out['naics_full'] = out['naicsh_str'].fillna(out['naics_str'])
 
     # size
     out['stock_price'] = np.abs(df['prccq'])

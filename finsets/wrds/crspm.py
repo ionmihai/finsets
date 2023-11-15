@@ -51,7 +51,7 @@ def default_raw_vars():
     
     return ['permno','permco','date',
             'ret', 'retx', 'shrout', 'prc', 
-            'shrcd', 'exchcd','siccd','ticker','cusip','ncusip',
+            'shrcd', 'exchcd','siccd','naics', 'ticker','cusip','ncusip',
             'dlret','dlstcd','dlstdt']            
 
 # %% ../../nbs/01_wrds/01_crspm.ipynb 11
@@ -144,6 +144,9 @@ def features(
 ) -> pd.DataFrame:
     
     out = pd.DataFrame(index=df.index)
+
+    out['siccd_str'] = df['siccd'].astype('Int64').astype('string').str.zfill(4)
+    out['naics_str'] = df['naics'].astype('string')
 
     out['ret_adj'] = delist_adj_ret(df, adj_ret_var='ret_adj')[['ret_adj']].copy()
 

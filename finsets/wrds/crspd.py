@@ -148,6 +148,9 @@ def features(
 
     out['ret_adj'] = delist_adj_ret(df, adj_ret_var='ret_adj')[['ret_adj']].copy()
 
+    out['siccd_str'] = df['siccd'].astype('Int64').astype('string').str.zfill(4)
+    out['naics_str'] = df['naics'].astype('string')
+
     # Note that we are not using trading days below, but calendar days
     out['lbhret12'] = pdm.rrolling(1+df['ret'], window=30, func='prod', skipna=True) - 1
     out['retvol12'] = pdm.rrolling(df['ret'], window=30, func='std', skipna=True) 

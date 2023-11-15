@@ -133,8 +133,13 @@ def features(df: pd.DataFrame=None
     out = pd.DataFrame(index=df.index)
 
     # industry 
-    out['sic_full'] = np.where(df['sich'].isna(), df['sic'], df['sich'])
-    out['naics_full'] = np.where(df['naicsh'].isna(), df['naics'], df['sich'])
+    out['sich_str'] = df['sich'].astype('Int64').astype('string').str.zfill(4)
+    out['naicsh_str'] = df['naicsh'].astype('Int64').astype('string')
+    out['sic_str'] = df['sic'].astype('string')
+    out['naics_str'] = df['naics'].astype('string')
+
+    out['sic_full'] = out['sich_str'].fillna(out['sic_str'])
+    out['naics_full'] = out['naicsh_str'].fillna(out['naics_str'])
 
     # size 
     out['stock_price'] = np.abs(df['prcc_f'])
