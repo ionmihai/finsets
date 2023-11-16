@@ -116,7 +116,7 @@ Alternatively, you can supply the API key directly as the `api_key`
 parameter in each function in the `fred` module.
 
 ``` python
-gdp = fred.get_raw_data(['GDP'])
+gdp = fred.fred.get_raw_data(['GDP'])
 ```
 
 ``` python
@@ -128,7 +128,7 @@ gdp['info']
 
 |     | id  | realtime_start | realtime_end | title                  | observation_start | observation_end | frequency | frequency_short | units               | units_short | seasonal_adjustment             | seasonal_adjustment_short | last_updated           | popularity | notes                                            |
 |-----|-----|----------------|--------------|------------------------|-------------------|-----------------|-----------|-----------------|---------------------|-------------|---------------------------------|---------------------------|------------------------|------------|--------------------------------------------------|
-| 0   | GDP | 2023-11-12     | 2023-11-12   | Gross Domestic Product | 1947-01-01        | 2023-07-01      | Quarterly | Q               | Billions of Dollars | Bil. of \$  | Seasonally Adjusted Annual Rate | SAAR                      | 2023-10-26 07:55:01-05 | 92         | BEA Account Code: A191RC Gross domestic produ... |
+| 0   | GDP | 2023-11-15     | 2023-11-15   | Gross Domestic Product | 1947-01-01        | 2023-07-01      | Quarterly | Q               | Billions of Dollars | Bil. of \$  | Seasonally Adjusted Annual Rate | SAAR                      | 2023-10-26 07:55:01-05 | 92         | BEA Account Code: A191RC Gross domestic produ... |
 
 </div>
 

@@ -1,2 +1,2 @@
-from .fred import *
-from . import fred_api
+#from .fred import *
+from . import fred_api, fred
