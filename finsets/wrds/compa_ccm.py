@@ -123,7 +123,23 @@ def process_raw_data(
 
     if linkprim_filter: df = df.loc[df['linkprim'].isin(linkprim_filter)].copy()
 
-    df = pdm.setup_panel(df, panel_ids=ENTITY_ID_IN_RAW_DSET, time_var=TIME_VAR_IN_RAW_DSET, freq=FREQ, **clean_kwargs)
+    # Change some variables to categorical
+    for col in ['permno','permco']:
+        if col in df.columns:
+            df[col] = df[col].astype('Int64').astype('category')
+
+    for col in ['gvkey','naics','sic','fic','cik','tic','cusip']:
+        if col in df.columns:
+            df[col] = df[col].astype('string').astype('category')
+
+    if 'sich' in df.columns:
+        df['sich'] = df['sich'].astype('Int64').astype('string').str.zfill(4).astype('category')
+
+    if 'naicsh' in df.columns:
+        df['naicsh'] = df['naicsh'].astype('Int64').astype('string').astype('category')
+
+    # Set up panel structure
+    df = pdm.setup_panel(df, panel_ids=ENTITY_ID_IN_RAW_DSET, time_var=TIME_VAR_IN_RAW_DSET, freq=FREQ, panel_ids_toint=False, **clean_kwargs)
     return df 
 
 # %% ../../nbs/01_wrds/03_compa_ccm.ipynb 21
@@ -133,13 +149,8 @@ def features(df: pd.DataFrame=None
     out = pd.DataFrame(index=df.index)
 
     # industry 
-    out['sich_str'] = df['sich'].astype('Int64').astype('string').str.zfill(4)
-    out['naicsh_str'] = df['naicsh'].astype('Int64').astype('string')
-    out['sic_str'] = df['sic'].astype('string')
-    out['naics_str'] = df['naics'].astype('string')
-
-    out['sic_full'] = out['sich_str'].fillna(out['sic_str'])
-    out['naics_full'] = out['naicsh_str'].fillna(out['naics_str'])
+    out['sic_full'] = df['sich'].astype('object').fillna(df['sic'].astype('object')).astype('category')
+    out['naics_full'] = df['naicsh'].astype('object').fillna(df['naics'].astype('object')).astype('category')
 
     # size 
     out['stock_price'] = np.abs(df['prcc_f'])

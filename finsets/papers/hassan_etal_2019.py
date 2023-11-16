@@ -50,7 +50,7 @@ def process_raw_data(
 
     df = df.copy()
 
-    df['gvkey'] = df['gvkey'].astype('string').str.zfill(6) #prepend 0's up to len 6
+    df['gvkey'] = df['gvkey'].astype('string').str.zfill(6).astype('category') #prepend 0's up to len 6
     df['date'] = df['date'].astype('string')
 
     # Format date variable so it can be converted into datetime (as the last day of the quarter)

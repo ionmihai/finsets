@@ -51,9 +51,9 @@ def default_raw_vars():
     
     return ['permno','permco','date',
             'ret', 'retx', 'shrout', 'prc', 
-            'shrcd', 'exchcd','siccd','ticker','cusip','ncusip',
+            'shrcd', 'exchcd',
             'cfacpr', 'cfacshr',
-            'dlret','dlstcd','dlstdt']            
+            'dlret','dlstcd','dlstdt']  #'siccd','naics','cusip','ncusip'          
 
 # %% ../../nbs/01_wrds/02_crspd.ipynb 11
 def parse_varlist(vars: List[str]=None,
@@ -87,8 +87,9 @@ def get_raw_data(
         vars: List[str]=None, # If None, downloads `default_raw_vars`; use '*' to get all available variables
         required_vars = ['permno','date'], # Variables that are always downloaded, regardless `vars` argument
         nrows: int=None,  #Number of rows to download. If None, full dataset will be downloaded             
-        start_date: str=None,          # Start date in MM/DD/YYYY format
+        start_date: str="01/01/1950",  # Start date in MM/DD/YYYY format
         end_date: str=None,            # End date in MM/DD/YYYY format  
+        shrcd_exchcd_filters: bool=True, # If true, keep only observations with shrcd in [10,11] and exchcd in [1,2,3]
 ) -> pd.DataFrame:
     "Downloads `vars` from `start_date` to `end_date` from WRDS {LIBRARY}.{TABLE}, {LIBRARY}.{NAMES_TABLE} and {LIBRARY}.{DELIST_TABLE}." 
 
@@ -102,8 +103,9 @@ def get_raw_data(
                             ON a.permno=c.permno AND date_trunc('month', a.date) = date_trunc('month', c.dlstdt)
                             """
     sql_string += "WHERE 1=1 "
-    if start_date is not None: sql_string += r" AND date >= %(start_date)s"
-    if end_date is not None: sql_string += r" AND date <= %(end_date)s"
+    if shrcd_exchcd_filters: sql_string += "AND shrcd IN (10,11) AND exchcd IN (1,2,3) "
+    if start_date is not None: sql_string += r"AND date >= %(start_date)s "
+    if end_date is not None: sql_string += r"AND date <= %(end_date)s "
     if nrows is not None: sql_string += r" LIMIT %(nrows)s"
 
     df = wrds_api.download(sql_string,
@@ -111,17 +113,30 @@ def get_raw_data(
     
     return df 
 
-# %% ../../nbs/01_wrds/02_crspd.ipynb 17
+# %% ../../nbs/01_wrds/02_crspd.ipynb 16
 def process_raw_data(
         df: pd.DataFrame=None,  # Must contain `permno` and `date` columns         
         clean_kwargs: dict={},  # Params to pass to `pdm.setup_panel` other than `panel_ids`, `time_var`, and `freq`
 ) -> pd.DataFrame:
     """Applies `pandasmore.setup_panel` to `df`"""
 
-    df = pdm.setup_panel(df, panel_ids=ENTITY_ID_IN_RAW_DSET, time_var=TIME_VAR_IN_RAW_DSET, freq=FREQ, **clean_kwargs)
+    # Change some variables to categorical
+    for col in ['permno','permco','shrcd','exchcd']:
+        if col in df.columns:
+            df[col] = df[col].astype('Int64').astype('category')
+
+    for col in ['naics','cusip','ncusip']:
+        if col in df.columns:
+            df[col] = df[col].astype('string').astype('category')
+
+    if 'siccd' in df.columns:
+        df['siccd'] = df['siccd'].astype('Int64').astype('string').str.zfill(4).astype('category')
+
+    # Set up panel structure
+    df = pdm.setup_panel(df, panel_ids=ENTITY_ID_IN_RAW_DSET, time_var=TIME_VAR_IN_RAW_DSET, freq=FREQ, panel_ids_toint=False, **clean_kwargs)
     return df 
 
-# %% ../../nbs/01_wrds/02_crspd.ipynb 20
+# %% ../../nbs/01_wrds/02_crspd.ipynb 19
 def delist_adj_ret(
         df: pd.DataFrame, # Requires `ret`,`exchcd`,`dlret`,`dlstcd`, and `dlstdt` variables
         adj_ret_var: str='ret_adj' # Name of the adjusted return variable created by this function
@@ -139,7 +154,7 @@ def delist_adj_ret(
     df = df.drop('npdelist', axis=1) 
     return df
 
-# %% ../../nbs/01_wrds/02_crspd.ipynb 22
+# %% ../../nbs/01_wrds/02_crspd.ipynb 21
 def features(
         df: pd.DataFrame,
 ) -> pd.DataFrame:
@@ -147,10 +162,7 @@ def features(
     out = pd.DataFrame(index=df.index)
 
     out['ret_adj'] = delist_adj_ret(df, adj_ret_var='ret_adj')[['ret_adj']].copy()
-
-    out['siccd_str'] = df['siccd'].astype('Int64').astype('string').str.zfill(4)
-    out['naics_str'] = df['naics'].astype('string')
-
+    
     # Note that we are not using trading days below, but calendar days
     out['lbhret12'] = pdm.rrolling(1+df['ret'], window=30, func='prod', skipna=True) - 1
     out['retvol12'] = pdm.rrolling(df['ret'], window=30, func='std', skipna=True) 

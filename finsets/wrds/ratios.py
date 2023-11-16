@@ -59,17 +59,29 @@ def get_raw_data(vars: List[str]=None, # If None or '*', downloads all variables
     return wrds_api.download(sql_string,
                             params={'start_date':start_date, 'end_date':end_date, 'nrows':nrows})
 
-# %% ../../nbs/01_wrds/05_ratios.ipynb 12
+# %% ../../nbs/01_wrds/05_ratios.ipynb 11
 def process_raw_data(
         df: pd.DataFrame=None,  # Must contain `permno` and `datadate` columns         
         clean_kwargs: dict={},  # Params to pass to `pdm.setup_panel` other than `panel_ids`, `time_var`, and `freq`
 ) -> pd.DataFrame:
-    """Applies `pandasmore.setup_panel` to `df`"""
+    """Converts some variables to categorical and applies `pandasmore.setup_panel` to `df`"""
 
-    df = pdm.setup_panel(df, panel_ids=ENTITY_ID_IN_RAW_DSET, time_var=TIME_VAR_IN_RAW_DSET, freq=FREQ, **clean_kwargs)
+    # Convert some columns to categorical
+    if 'permno' in df.columns: df['permno'] = df['permno'].astype('Int64').astype('category')
+    
+    for col in ['gvkey','ticker','cusip','gsector','gicdesc']:
+        if col in df.columns: df[col] = df[col].astype('category')
+
+    for col in df.columns:
+        if col.startswith('ffi'):
+            if col.endswith('desc'): df[col] = df[col].astype('category')
+            else: df[col] = df[col].astype('Int64').astype('category')
+
+    # Set panel structure     
+    df = pdm.setup_panel(df, panel_ids=ENTITY_ID_IN_RAW_DSET, time_var=TIME_VAR_IN_RAW_DSET, freq=FREQ, panel_ids_toint=False, **clean_kwargs)
     return df 
 
-# %% ../../nbs/01_wrds/05_ratios.ipynb 15
+# %% ../../nbs/01_wrds/05_ratios.ipynb 14
 def keep_only_ratios(
         df: pd.DataFrame
 ) -> pd.DataFrame:

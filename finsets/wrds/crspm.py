@@ -110,17 +110,30 @@ def get_raw_data(
     
     return df 
 
-# %% ../../nbs/01_wrds/01_crspm.ipynb 17
+# %% ../../nbs/01_wrds/01_crspm.ipynb 16
 def process_raw_data(
         df: pd.DataFrame=None,  # Must contain `permno` and `date` columns         
         clean_kwargs: dict={},  # Params to pass to `pdm.setup_panel` other than `panel_ids`, `time_var`, and `freq`
 ) -> pd.DataFrame:
     """Applies `pandasmore.setup_panel` to `df`"""
 
-    df = pdm.setup_panel(df, panel_ids=ENTITY_ID_IN_RAW_DSET, time_var=TIME_VAR_IN_RAW_DSET, freq=FREQ, **clean_kwargs)
+    # Change some variables to categorical
+    for col in ['permno','permco','shrcd','exchcd']:
+        if col in df.columns:
+            df[col] = df[col].astype('Int64').astype('category')
+
+    for col in ['naics','cusip','ncusip']:
+        if col in df.columns:
+            df[col] = df[col].astype('string').astype('category')
+
+    if 'siccd' in df.columns:
+        df['siccd'] = df['siccd'].astype('Int64').astype('string').str.zfill(4).astype('category')
+
+    df = pdm.setup_panel(df, panel_ids=ENTITY_ID_IN_RAW_DSET, time_var=TIME_VAR_IN_RAW_DSET, freq=FREQ, 
+                        panel_ids_toint=False, **clean_kwargs)
     return df 
 
-# %% ../../nbs/01_wrds/01_crspm.ipynb 20
+# %% ../../nbs/01_wrds/01_crspm.ipynb 19
 def delist_adj_ret(
         df: pd.DataFrame, # Requires `ret`,`exchcd`,`dlret`,`dlstcd`, and `dlstdt` variables
         adj_ret_var: str='ret_adj' # Name of the adjusted return variable created by this function
@@ -138,16 +151,13 @@ def delist_adj_ret(
     df = df.drop('npdelist', axis=1) 
     return df
 
-# %% ../../nbs/01_wrds/01_crspm.ipynb 22
+# %% ../../nbs/01_wrds/01_crspm.ipynb 21
 def features(
         df: pd.DataFrame,
 ) -> pd.DataFrame:
     
     out = pd.DataFrame(index=df.index)
-
-    out['siccd_str'] = df['siccd'].astype('Int64').astype('string').str.zfill(4)
-    out['naics_str'] = df['naics'].astype('string')
-
+    
     out['ret_adj'] = delist_adj_ret(df, adj_ret_var='ret_adj')[['ret_adj']].copy()
 
     out['lbhret12'] = pdm.rrolling(1+df['ret'], window=12, func='prod') - 1

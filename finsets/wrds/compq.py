@@ -127,6 +127,7 @@ def process_raw_data(
     df = df.sort_values(['gvkey','datadate','fyearq','fqtr']).drop_duplicates(subset=['gvkey','datadate'], keep='last').copy()
 
     # Clean up some useful dates (convert rdq to datetime, and extract the fiscal year end date)
+    df = df.dropna(subset=['fyearq','fqtr']).copy()
     df['rdq'] = pd.to_datetime(df['rdq'])
     df['dtdate_fiscal'] = pd.to_datetime((df['fyearq'].astype(int).astype(str) + '-' 
                                           + (df['fqtr'].astype(int)*3).astype(str) 
@@ -134,6 +135,18 @@ def process_raw_data(
                                           ) + pd.offsets.MonthEnd(1)
     df['Qdate_fiscal'] = df['dtdate_fiscal'].dt.to_period('Q')
 
+    # Change some variables to categorical
+    for col in ['gvkey','naics','sic','fic','cik','tic','cusip']:
+        if col in df.columns:
+            df[col] = df[col].astype('string').astype('category')
+
+    if 'sich' in df.columns:
+        df['sich'] = df['sich'].astype('Int64').astype('string').str.zfill(4).astype('category')
+
+    if 'naicsh' in df.columns:
+        df['naicsh'] = df['naicsh'].astype('Int64').astype('string').astype('category')
+
+    # Set up panel structure
     df = pdm.setup_panel(df, panel_ids=ENTITY_ID_IN_RAW_DSET, time_var=TIME_VAR_IN_RAW_DSET, freq=FREQ, 
                          panel_ids_toint=False,
                          **clean_kwargs)
@@ -167,13 +180,8 @@ def features(df: pd.DataFrame=None
     out = ytd_to_quarterly(df, suffix='_q')
 
     # industry 
-    out['sich_str'] = df['sich'].astype('Int64').astype('string').str.zfill(4)
-    out['naicsh_str'] = df['naicsh'].astype('Int64').astype('string')
-    out['sic_str'] = df['sic'].astype('string')
-    out['naics_str'] = df['naics'].astype('string')
-
-    out['sic_full'] = out['sich_str'].fillna(out['sic_str'])
-    out['naics_full'] = out['naicsh_str'].fillna(out['naics_str'])
+    out['sic_full'] = df['sich'].astype('object').fillna(df['sic'].astype('object')).astype('category')
+    out['naics_full'] = df['naicsh'].astype('object').fillna(df['naics'].astype('object')).astype('category')
 
     # size
     out['stock_price'] = np.abs(df['prccq'])
