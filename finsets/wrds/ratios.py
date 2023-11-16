@@ -41,7 +41,7 @@ def list_all_vars() -> pd.DataFrame:
 
 # %% ../../nbs/01_wrds/05_ratios.ipynb 8
 def get_raw_data(vars: List[str]=None, # If None or '*', downloads all variables
-             obs_limit: int=None, #Number of rows to download. If None, full dataset will be downloaded
+             nrows: int=None, #Number of rows to download. If None, full dataset will be downloaded
              start_date: str=None, # Start date in MM/DD/YYYY format
              end_date: str=None #End date in MM/DD/YYYY format
              ) -> pd.DataFrame:
@@ -54,10 +54,10 @@ def get_raw_data(vars: List[str]=None, # If None or '*', downloads all variables
     sql_string=f"""SELECT {vars} FROM {LIBRARY}.{TABLE} WHERE 1 = 1 """
     if start_date is not None: sql_string += r" AND public_date >= %(start_date)s"
     if end_date is not None: sql_string += r" AND public_date <= %(end_date)s"
-    if obs_limit is not None: sql_string += r" LIMIT %(obs_limit)s"
+    if nrows is not None: sql_string += r" LIMIT %(nrows)s"
 
     return wrds_api.download(sql_string,
-                            params={'start_date':start_date, 'end_date':end_date, 'obs_limit':obs_limit})
+                            params={'start_date':start_date, 'end_date':end_date, 'nrows':nrows})
 
 # %% ../../nbs/01_wrds/05_ratios.ipynb 12
 def process_raw_data(
