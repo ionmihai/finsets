@@ -164,7 +164,8 @@ def features(
     out['ret_adj'] = delist_adj_ret(df, adj_ret_var='ret_adj')[['ret_adj']].copy()
     
     # Note that we are not using trading days below, but calendar days
-    out['lbhret12'] = pdm.rrolling(1+df['ret'], window=30, func='prod', skipna=True) - 1
-    out['retvol12'] = pdm.rrolling(df['ret'], window=30, func='std', skipna=True) 
+    #the rrolling method below is not feasible since it creates 30 lags all at once so it blows up the dataset
+    #out['lbhret12'] = pdm.rrolling(1+df['ret'], window=30, func='prod', skipna=True) - 1
+    #out['retvol12'] = pdm.rrolling(df['ret'], window=30, func='std', skipna=True) 
 
     return out 
