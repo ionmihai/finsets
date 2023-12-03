@@ -144,7 +144,7 @@ def features(df: pd.DataFrame=None
 
     # size 
     out['stock_price'] = np.abs(df['prcc_f'])
-    out['lag_at'] = pdm.lag(df['at'])
+    out['lag_at'] = pdm.lag(df[['at']])
     out['mktcap'] = out['stock_price'] * df['csho']
 
     # book equity vars

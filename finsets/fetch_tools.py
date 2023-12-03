@@ -14,21 +14,28 @@ __all__ = ['get_text_file_from_url']
 def get_text_file_from_url (url, #Data at this url must be readable with pandas.read_csv
              nrows: int=None, #Get only the first `nrows` from the file. If None, gets the entire file
              delimiter: str=',',
+             headers: dict=None, #Headers to pass to the request
+             skiprows: int=None, #Skip the first `skiprows` rows
+             encoding: str='utf-8', #Encoding to use when reading the file
              **pd_read_csv_kwargs,
     ) -> pd.DataFrame:
     "Gets the first `nrows` from the file found at `url`. Data at `url` must be separated by `delimiter` and be readable by pandas.read_csv"
-    
-    if nrows is not None:
-        response = requests.get(url, stream=True)
+
+
+    if nrows is None:
+        response = requests.get(url, headers=headers)
         response.raise_for_status()
+        data = response.content.decode(encoding)
+        return pd.read_csv(StringIO(data), delimiter=delimiter, skiprows=skiprows, **pd_read_csv_kwargs)
 
-        lines = []
-        for i, line in enumerate(response.iter_lines(decode_unicode=True)):
-            if i >= nrows: break
-            lines.append(line)
-        partial_csv = '\n'.join(lines)
-
-        return pd.read_csv(StringIO(partial_csv), delimiter=delimiter, **pd_read_csv_kwargs)
-
-    return pd.read_csv(url, delimiter=delimiter,  **pd_read_csv_kwargs)
+    response = requests.get(url, stream=True, headers=headers)
+    response.raise_for_status()
+    if skiprows is not None: nrows += skiprows
+    lines = []
+    for i, line in enumerate(response.iter_lines()):
+        if skiprows is not None and i < skiprows: continue
+        if i >= nrows: break
+        lines.append(line.decode(encoding))
+    data = '\n'.join(lines)
+    return pd.read_csv(StringIO(data), delimiter=delimiter, **pd_read_csv_kwargs)
 
