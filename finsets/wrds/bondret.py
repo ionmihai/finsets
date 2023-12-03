@@ -13,7 +13,7 @@ from . import wrds_api
 # %% auto 0
 __all__ = ['PROVIDER', 'URL', 'LIBRARY', 'TABLE', 'LINK_TABLE', 'FREQ', 'MIN_YEAR', 'MAX_YEAR', 'ENTITY_ID_IN_RAW_DSET',
            'ENTITY_ID_IN_CLEAN_DSET', 'TIME_VAR_IN_RAW_DSET', 'TIME_VAR_IN_CLEAN_DSET', 'list_all_vars',
-           'default_raw_vars', 'parse_varlist', 'get_raw_data']
+           'default_raw_vars', 'parse_varlist', 'get_raw_data', 'process_raw_data']
 
 # %% ../../nbs/01_wrds/07_bondret.ipynb 4
 PROVIDER = 'Wharton Research Data Services (WRDS)'
@@ -24,7 +24,7 @@ LINK_TABLE = 'bondcrsp_link'
 FREQ = 'M'
 MIN_YEAR = 2002
 MAX_YEAR = None
-ENTITY_ID_IN_RAW_DSET = 'cusip'
+ENTITY_ID_IN_RAW_DSET = 'permno'
 ENTITY_ID_IN_CLEAN_DSET = 'permno'
 TIME_VAR_IN_RAW_DSET = 'date'
 TIME_VAR_IN_CLEAN_DSET = f'{FREQ}date'
@@ -98,3 +98,23 @@ def get_raw_data(
     
     return wrds_api.download(sql_string,
                              params={'start_date':start_date, 'end_date':end_date, 'nrows':nrows})
+
+# %% ../../nbs/01_wrds/07_bondret.ipynb 15
+def process_raw_data(
+        df: pd.DataFrame=None,  # Must contain `permno` and `datadate` columns   
+        clean_kwargs: dict={},  # Params to pass to `pdm.setup_panel` other than `panel_ids`, `time_var`, and `freq`
+) -> pd.DataFrame:
+    """Applies `pandasmore.setup_panel` to `df`"""
+
+    # Change some variables to categorical
+    for col in ['permno','permco']:
+        if col in df.columns:
+            df[col] = df[col].astype('Int64').astype('category')
+
+    for col in ['cusip']:
+        if col in df.columns:
+            df[col] = df[col].astype('string').astype('category')
+
+    # Set up panel structure
+    df = pdm.setup_panel(df, panel_ids=ENTITY_ID_IN_RAW_DSET, time_var=TIME_VAR_IN_RAW_DSET, freq=FREQ, panel_ids_toint=False, **clean_kwargs)
+    return df 
