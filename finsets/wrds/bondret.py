@@ -116,5 +116,9 @@ def process_raw_data(
             df[col] = df[col].astype('string').astype('category')
 
     # Set up panel structure
-    df = pdm.setup_panel(df, panel_ids=ENTITY_ID_IN_RAW_DSET, time_var=TIME_VAR_IN_RAW_DSET, freq=FREQ, panel_ids_toint=False, **clean_kwargs)
+    df = pdm.setup_panel(df, 
+                         drop_index_duplicates=False, # Multiple bonds (cusips) per permno per date
+                         panel_ids=ENTITY_ID_IN_RAW_DSET, time_var=TIME_VAR_IN_RAW_DSET, freq=FREQ, 
+                         panel_ids_toint=False, 
+                         **clean_kwargs)
     return df 
