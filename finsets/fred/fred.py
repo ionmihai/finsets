@@ -7,6 +7,7 @@ __all__ = ['PROVIDER', 'URL', 'get_series_info', 'default_raw_vars', 'parse_varl
 # %% ../../nbs/00_fred/00_fred.ipynb 4
 from typing import List, Dict
 import time
+import copy
 
 import pandas as pd
 
@@ -82,6 +83,7 @@ def process_raw_data(
 ) -> pd.DataFrame: 
     """Processes data from FRED: cleans the date and sets it as index using `pdm.setup_tseries`"""
 
+    data = copy.deepcopy(data)
     out = {'info': data['info']}
     data.pop('info')  
     for freq, df in data.items():  
