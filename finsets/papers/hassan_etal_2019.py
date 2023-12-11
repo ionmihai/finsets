@@ -42,7 +42,7 @@ def get_raw_data(url: str=URL,
 
 # %% ../../nbs/02_papers/hassan_etal_2019.ipynb 12
 def process_raw_data(
-        df: pd.DataFrame=None, # If None, will download using `download_raw`
+        df: pd.DataFrame=None, # Raw data
         gvkey_permno_link: bool|pd.DataFrame=True, # Whether to download permno or not. If DataFrame, must contain `permno`, `gvkey`, and `Qdate`
 ) -> pd.DataFrame:
     """Converts `gvkey` to string and applies `pandasmore.setup_panel`. Adds `permno` if `gvkey_permno_link` is not False."""
@@ -67,11 +67,13 @@ def process_raw_data(
                         drop_index_duplicates=True, duplicates_which_keep='last')
     
     if not gvkey_permno_link: return df
-    else:    
-      if gvkey_permno_link is True: gvkey_permno_link = wrds.linking.gvkey_permno_q()
-      gvkey_permno_link['gvkey'] = gvkey_permno_link['gvkey'].astype('string').astype('category') 
-      df = df.reset_index().merge(gvkey_permno_link, how='inner', on=['gvkey','Qdate'])
-      df['permno'] = df['permno'].astype('Int64').astype('category')
-      return pdm.setup_panel(df, panel_ids='permno', dates_processed=True, freq='Q',
-                                panel_ids_toint=False,
-                                drop_index_duplicates=True, duplicates_which_keep='last')
+
+    if gvkey_permno_link is True: gvkey_permno_link = wrds.linking.gvkey_permno_q()
+    
+    gvkey_permno_link['gvkey'] = gvkey_permno_link['gvkey'].astype('string').astype('category') 
+    df = df.reset_index().merge(gvkey_permno_link, how='inner', on=['gvkey','Qdate'])
+    df['permno'] = df['permno'].astype('Int64').astype('category')
+
+    return pdm.setup_panel(df, panel_ids='permno', dates_processed=True, freq='Q',
+                            panel_ids_toint=False,
+                            drop_index_duplicates=True, duplicates_which_keep='last')
