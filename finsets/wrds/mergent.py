@@ -5,9 +5,7 @@ from __future__ import annotations
 from typing import List
 
 import pandas as pd
-import numpy as np
 
-import pandasmore as pdm
 from . import wrds_api
 
 # %% auto 0
@@ -47,9 +45,9 @@ def default_raw_vars():
     """Defines default variables used in `get_raw_data` if none are specified."""
 
     return ['offering_date', 'issue_id', 'issuer_id', 'issuer_cusip', 'issue_cusip', 'complete_cusip', 'isin', 
-            'security_level', 'coupon_type', 'convertible', 'foreign_currency', 'rule_144a', 'redeemable', 'bond_type', 'conv_commod_type',
+            'security_level', 'coupon_type', 'convertible', 'foreign_currency', 'rule_144a', 'redeemable', 'bond_type', 
             'maturity', 'coupon', 'offering_amt', 'offering_price', 'principal_amt', 'defaulted',
-            'day_count_basis', 'last_interest_date', 'first_interest_date',
+            'day_count_basis', 'last_interest_date', 'first_interest_date', 'conv_commod_type',
             'cusip_name','naics_code','sic_code', 'treasury_maturity', 
             'country_domicile',  'private_placement', 'asset_backed', 'interest_frequency','dated_date',
             ]            
@@ -84,7 +82,7 @@ def parse_varlist(vars: List[str]=None,
 # %% ../../nbs/01_wrds/08_mergent.ipynb 12
 def get_raw_data(
         vars: List[str]=None, # If None, downloads `default_raw_vars`; use '*' to get all available variables
-        required_vars: List[str]=['offering_date','complete_cusip','issuer_id'], #list of variables that will get downloaded, even if not in `vars`
+        required_vars: List[str]=['offering_date','complete_cusip','issuer_id'], #Will get downloaded, even if not in `vars`
         nrows: int=None, #Number of rows to download. If None, full dataset will be downloaded
         start_date: str=None, # Start date in MM/DD/YYYY format
         end_date: str=None #End date in MM/DD/YYYY format
@@ -95,7 +93,7 @@ def get_raw_data(
     vars = parse_varlist(vars, required_vars=required_vars)
 
     sql_string=f"""SELECT {vars}
-                    FROM {LIBRARY}.{TABLE} AS a
+            TSLA        FROM {LIBRARY}.{TABLE} AS a
                     LEFT JOIN {LIBRARY}.{ISSUER_TABLE} AS b ON a.issuer_id = b.issuer_id
                     WHERE 1=1
                 """
@@ -109,7 +107,6 @@ def get_raw_data(
 # %% ../../nbs/01_wrds/08_mergent.ipynb 15
 def process_raw_data(
         df: pd.DataFrame=None,  # Must contain `permno` and `datadate` columns   
-        clean_kwargs: dict={},  # Params to pass to `pdm.setup_panel` other than `panel_ids`, `time_var`, and `freq`
 ) -> pd.DataFrame:
     """Mainly converts variables to categorical type to save memory."""
 

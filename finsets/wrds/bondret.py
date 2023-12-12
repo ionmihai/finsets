@@ -13,7 +13,7 @@ from . import wrds_api
 # %% auto 0
 __all__ = ['PROVIDER', 'URL', 'LIBRARY', 'TABLE', 'LINK_TABLE', 'FREQ', 'MIN_YEAR', 'MAX_YEAR', 'ENTITY_ID_IN_RAW_DSET',
            'ENTITY_ID_IN_CLEAN_DSET', 'TIME_VAR_IN_RAW_DSET', 'TIME_VAR_IN_CLEAN_DSET', 'list_all_vars',
-           'default_raw_vars', 'parse_varlist', 'get_raw_data', 'process_raw_data']
+           'parse_varlist', 'get_raw_data', 'process_raw_data']
 
 # %% ../../nbs/01_wrds/07_bondret.ipynb 4
 PROVIDER = 'Wharton Research Data Services (WRDS)'
@@ -42,12 +42,6 @@ def list_all_vars() -> pd.DataFrame:
     return df[['name','type','wrds_library','wrds_table']].copy()
 
 # %% ../../nbs/01_wrds/07_bondret.ipynb 8
-def default_raw_vars():
-    """Defines default variables used in `get_raw_data` if none are specified."""
-
-    return ['date','cusip','maturity', 'ncoups', 'price_eom', 'ret_eom', 'yield', 'coupon', 'remcoups', 'amount_outstanding', 'principal_amt']            
-
-# %% ../../nbs/01_wrds/07_bondret.ipynb 10
 def parse_varlist(vars: List[str]=None,
                   required_vars = [],
                   ) -> str:
@@ -58,10 +52,9 @@ def parse_varlist(vars: List[str]=None,
     all_avail_vars = list_all_vars().drop_duplicates(subset='name',keep='first').copy()
     all_avail_vars['w_prefix'] = all_avail_vars.apply(lambda row: suffix_mapping[row['wrds_table']] + row['name'] , axis=1)
 
-    if vars == '*': return ','.join(list(all_avail_vars['w_prefix']))
+    if vars == '*' or vars is None: return ','.join(list(all_avail_vars['w_prefix']))
     
     # Add required vars to requested vars
-    if vars is None: vars = default_raw_vars()
     vars_to_get =  required_vars + [x for x in list(set(vars)) if x not in required_vars]
 
     # Validate variables to be downloaded (make sure that they are in the target database)
@@ -74,9 +67,9 @@ def parse_varlist(vars: List[str]=None,
         
     return ','.join(list(get_these['w_prefix']))
 
-# %% ../../nbs/01_wrds/07_bondret.ipynb 12
+# %% ../../nbs/01_wrds/07_bondret.ipynb 10
 def get_raw_data(
-        vars: List[str]=None, # If None, downloads `default_raw_vars`; use '*' to get all available variables
+        vars: List[str]='*', # Downloads all available variables by defaul
         required_vars: List[str]=['cusip','date'], #list of variables that will get downloaded, even if not in `vars`
         nrows: int=None, #Number of rows to download. If None, full dataset will be downloaded
         start_date: str=None, # Start date in MM/DD/YYYY format
@@ -99,7 +92,7 @@ def get_raw_data(
     return wrds_api.download(sql_string,
                              params={'start_date':start_date, 'end_date':end_date, 'nrows':nrows})
 
-# %% ../../nbs/01_wrds/07_bondret.ipynb 15
+# %% ../../nbs/01_wrds/07_bondret.ipynb 13
 def process_raw_data(
         df: pd.DataFrame=None,  # Must contain `permno` and `datadate` columns   
         clean_kwargs: dict={},  # Params to pass to `pdm.setup_panel` other than `panel_ids`, `time_var`, and `freq`
