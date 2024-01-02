@@ -61,4 +61,8 @@ def process_raw_data(df: pd.DataFrame=None,
     if permno_to_bond_cusip is True: permno_to_bond_cusip = wrds.linking.bond_cusip_permno()
 
     df = df.merge(permno_to_bond_cusip, on=['cusip'], how='left')
+
+    for col in ['permno','permco']:
+        if col in df.columns: df[col] = df[col].astype('Int64').astype('category')
+
     return df 

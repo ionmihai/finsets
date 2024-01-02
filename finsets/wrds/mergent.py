@@ -48,7 +48,7 @@ def default_raw_vars():
             'security_level', 'coupon_type', 'convertible', 'foreign_currency', 'rule_144a', 'redeemable', 'bond_type', 
             'maturity', 'coupon', 'offering_amt', 'offering_price', 'principal_amt', 'defaulted',
             'day_count_basis', 'last_interest_date', 'first_interest_date', 'conv_commod_type',
-            'cusip_name','naics_code','sic_code', 'treasury_maturity', 
+            'cusip_name','naics_code','sic_code', 'treasury_maturity', 'putable',
             'country_domicile',  'private_placement', 'asset_backed', 'interest_frequency','dated_date',
             ]            
 
@@ -93,7 +93,7 @@ def get_raw_data(
     vars = parse_varlist(vars, required_vars=required_vars)
 
     sql_string=f"""SELECT {vars}
-            TSLA        FROM {LIBRARY}.{TABLE} AS a
+                    FROM {LIBRARY}.{TABLE} AS a
                     LEFT JOIN {LIBRARY}.{ISSUER_TABLE} AS b ON a.issuer_id = b.issuer_id
                     WHERE 1=1
                 """
@@ -114,6 +114,7 @@ def process_raw_data(
     to_cat = ['cusip', 'issuer_cusip', 'issue_cusip', 'isin', 'naics_code', 'sic_code', 
            'redeemable', 'security_level', 'country_domicile', 'private_placement', 'foreign_currency', 'rule_144a',
            'asset_backed', 'convertible', 'coupon_type','bond_type']
+
     for col in to_cat:
         if col in df.columns:
             df[col] = df[col].astype('string').astype('category')

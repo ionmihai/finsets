@@ -40,6 +40,7 @@ def parse_varlist(vars: List[str]=None, #list of variables requested by user; if
     "Splits `vars` by frequency and returns dict with one pd.DataFrame per frequency"
      
     if vars is None: vars = default_raw_vars()
+    if isinstance(vars, str): vars = [vars]
 
     # Collect frequency data for all series
     freq_store = []
