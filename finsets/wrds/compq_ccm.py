@@ -169,7 +169,9 @@ def ytd_to_quarterly(df: pd.DataFrame=None,
 ) -> pd.DataFrame:
     """Convert YTD variables to quarterly variables by taking the difference between the current and previous quarter."""
 
-    out = df.reset_index().set_index(['permno','Qdate_fiscal']).sort_index().copy()
+    out = (df.reset_index().drop_duplicates(subset=['permno','Qdate_fiscal'])
+           .set_index(['permno','Qdate_fiscal'])
+           .sort_index().copy())
 
     new_vars = []
     for v in vars:
@@ -187,6 +189,9 @@ def features(df: pd.DataFrame=None
     """Computes a set of features from `df`"""
     
     # convert ytd variables to quarterly
+    df = (df.reset_index().drop_duplicates(subset=['permno','Qdate_fiscal'])
+           .set_index(['permno','Qdate'])
+           .sort_index().copy())
     out = ytd_to_quarterly(df, suffix='_q')
 
     # industry 
