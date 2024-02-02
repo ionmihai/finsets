@@ -90,11 +90,11 @@ def process_raw_data(
     df = pdm.setup_panel(df, panel_ids=ENTITY_ID_IN_RAW_DSET, time_var=TIME_VAR_IN_RAW_DSET, freq=FREQ, panel_ids_toint=False, **clean_kwargs)
     return df 
 
-# %% ../../nbs/02_papers/peters_taylor_2016.ipynb 12
+# %% ../../nbs/02_papers/peters_taylor_2016.ipynb 11
 def features(df: pd.DataFrame=None
              ) -> pd.DataFrame:
 
-    out = df.copy()
+    out = df.sort_index().copy()
 
     for x in ['xrd','xsga']:
         out[f'{x}0'] = np.where(out[x].isnull() & out['at'].notnull(), 0, out[x])
@@ -104,7 +104,8 @@ def features(df: pd.DataFrame=None
                         ,out['xsga0'].fillna(0),
                         out['xsga0'] - out['xrd0'] - out['rdip'].fillna(0))    
 
-    out['k_phy'] = out['ppegt']
+    #They use ppegt below. I believe it should be ppent.
+    out['k_phy'] = out['ppent'] #+ pdm.rdiff(out['dp']) #we reconstruct gross ppe because ppegt has a lot of missing values
     out['k_tot'] = out['k_phy'] + out['k_int']
 
     out['i_phy'] = out['capx']

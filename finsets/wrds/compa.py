@@ -152,9 +152,9 @@ def features(df: pd.DataFrame=None
     out['pref_stock'] = np.where(df['pstkrv'].isnull(), df['pstkl'], df['pstkrv'])
     out['pref_stock'] = np.where(out['pref_stock'].isnull(),out['pstk0'], out['pref_stock'])
     out['shreq'] = np.where(df['seq'].isnull(), df['ceq'] + out['pstk0'], df['seq'])
-    out['shreq'] = np.where(out['shreq'].isnull(), df['at'] - df['lt'], out['shreq'])
-    out['bookeq'] = out['shreq'] + df['txditc'].fillna(0) - out['pref_stock']
-    out['bookeq_w_itcb'] = out['bookeq'] + df['itcb'].fillna(0)
+    out['shreq'] = np.where(out['shreq'].isnull(), df['at'] - df['lt'] - df['mib'].fillna(0), out['shreq'])
+    out['bookeq'] = out['shreq'] + df['txditc'].fillna(0) + df['itcb'].fillna(0) - out['pref_stock']
+    #out['bookeq_w_itcb'] = out['bookeq'] + df['itcb'].fillna(0)
 
     out['tobinq'] = (df['at'] - out['bookeq'] + out['stock_price'] * df['csho']) / df['at']
 

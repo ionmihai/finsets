@@ -121,7 +121,7 @@ def process_raw_data(
     """Applies `pandasmore.setup_panel` to `df`"""
 
     # Change some variables to categorical
-    for col in ['permno','permco','shrcd','exchcd']:
+    for col in ['shrcd','exchcd']:
         if col in df.columns:
             df[col] = df[col].astype('Int64').astype('category')
 

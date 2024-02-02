@@ -124,10 +124,6 @@ def process_raw_data(
     if linkprim_filter: df = df.loc[df['linkprim'].isin(linkprim_filter)].copy()
 
     # Change some variables to categorical
-    for col in ['permno','permco']:
-        if col in df.columns:
-            df[col] = df[col].astype('Int64').astype('category')
-
     for col in ['gvkey','naics','sic','fic','cik','tic','cusip']:
         if col in df.columns:
             df[col] = df[col].astype('string').astype('category')
@@ -162,9 +158,9 @@ def features(df: pd.DataFrame=None
     out['pref_stock'] = np.where(df['pstkrv'].isnull(), df['pstkl'], df['pstkrv'])
     out['pref_stock'] = np.where(out['pref_stock'].isnull(),out['pstk0'], out['pref_stock'])
     out['shreq'] = np.where(df['seq'].isnull(), df['ceq'] + out['pstk0'], df['seq'])
-    out['shreq'] = np.where(out['shreq'].isnull(), df['at'] - df['lt'], out['shreq'])
-    out['bookeq'] = out['shreq'] + df['txditc'].fillna(0) - out['pref_stock']
-    out['bookeq_w_itcb'] = out['bookeq'] + df['itcb'].fillna(0)
+    out['shreq'] = np.where(out['shreq'].isnull(), df['at'] - df['lt'] - df['mib'].fillna(0), out['shreq'])
+    out['bookeq'] = out['shreq'] + df['txditc'].fillna(0) + df['itcb'].fillna(0) - out['pref_stock']
+    #out['bookeq_w_itcb'] = out['bookeq'] + df['itcb'].fillna(0)
 
     out['tobinq'] = (df['at'] - out['bookeq'] + out['mktcap']) / df['at']
 

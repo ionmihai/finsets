@@ -143,10 +143,6 @@ def process_raw_data(
     df['Qdate_fiscal'] = df['dtdate_fiscal'].dt.to_period('Q')
 
     # Change some variables to categorical
-    for col in ['permno','permco']:
-        if col in df.columns:
-            df[col] = df[col].astype('Int64').astype('category')
-
     for col in ['gvkey','naics','sic','fic','cik','tic','cusip']:
         if col in df.columns:
             df[col] = df[col].astype('string').astype('category')

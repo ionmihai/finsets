@@ -67,8 +67,6 @@ def process_raw_data(
     """Converts some variables to categorical and applies `pandasmore.setup_panel` to `df`"""
 
     # Convert some columns to categorical
-    if 'permno' in df.columns: df['permno'] = df['permno'].astype('Int64').astype('category')
-    
     for col in ['gvkey','ticker','cusip','gsector','gicdesc']:
         if col in df.columns: df[col] = df[col].astype('category')
 
