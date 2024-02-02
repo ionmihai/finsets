@@ -18,6 +18,7 @@ __all__ = ['DATA_REPO', 'COMPA_PATH', 'COMPFT_PATH', 'CRSPM_PATH', 'CRSPFT_PATH'
            'ENTITY_ID_IN_CLEAN_DSET', 'TIME_VAR_IN_CLEAN_DSET', 'input_data', 'calculate_default_prob', 'calculate_cms']
 
 # %% ../../nbs/02_papers/greenwood_hanson_2013.ipynb 3
+#| eval: false
 DATA_REPO = Path(os.getenv('DATA_REPO')) #path to folder with all needed datasets (don't need it if you will be downloading them)
 
 COMPA_PATH = DATA_REPO/'finsets/wrds/compa_ccm/processed.pkl.zip' #Compustat annual: 'dtdate','dltt','dlc'
