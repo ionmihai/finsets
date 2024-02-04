@@ -19,15 +19,14 @@ __all__ = ['DATA_REPO', 'COMPA_PATH', 'COMPFT_PATH', 'CRSPM_PATH', 'CRSPFT_PATH'
 
 # %% ../../nbs/02_papers/greenwood_hanson_2013.ipynb 3
 #| eval: false
-DATA_REPO = Path(os.getenv('DATA_REPO')) #path to folder with all needed datasets (don't need it if you will be downloading them)
+DATA_REPO = Path(os.getenv('DATA_REPO')) #path to folder with all needed datasets (the four below)
 
-COMPA_PATH = DATA_REPO/'finsets/wrds/compa_ccm/processed.pkl.zip' #Compustat annual: 'dtdate','dltt','dlc'
-COMPFT_PATH = DATA_REPO/'finsets/wrds/compa_ccm/features.pkl.zip' #Compustat annual: 'debtiss_tot_2la'
-CRSPM_PATH = DATA_REPO/'finsets/wrds/crspm/processed.pkl.zip'  #Crsp monthly: 'prc','shrout','exchcd', 'siccd'
-CRSPFT_PATH = DATA_REPO/'finsets/wrds/crspm/features.pkl.zip'  #CRSP monthly features: 'retvol12', 'lbhret12'
+COMPA_PATH = DATA_REPO/'finsets/wrds/compa_ccm/processed.pkl.zip' #created with finsets.wrds.compa_ccm.process_raw_data()
+COMPFT_PATH = DATA_REPO/'finsets/wrds/compa_ccm/features.pkl.zip' #created with finsets.wrds.compa_ccm.features()
+CRSPM_PATH = DATA_REPO/'finsets/wrds/crspm/processed.pkl.zip'  #created with finsets.wrds.crspm.process_raw_data()
+CRSPFT_PATH = DATA_REPO/'finsets/wrds/crspm/features.pkl.zip'  #created with finsets.wrds.crspm.process_raw_data()
 
-
-OUTPUT_PATH = DATA_REPO/'finsets/papers/greenwood_hanson/features.pkl.zip'
+OUTPUT_PATH = DATA_REPO/'finsets/papers/greenwood_hanson_2016/features.pkl.zip'
 
 FREQ = 'A'
 START_DATE = 1962
@@ -83,5 +82,8 @@ def calculate_cms(df:pd.DataFrame=None):
                                                             quantiles=[x/10 for x in range(1,10)])
     means = df.reset_index().groupby(['Adate', 'issuance_quintile'])['edf_decile'].mean().reset_index().set_index('Adate')
     means = means.pivot(columns='issuance_quintile', values='edf_decile')
-    cms = means[5] - means[1]
+    cms = (means[5] - means[1]).to_frame(name='CMS')
+
+    os.makedirs(OUTPUT_PATH.parent, exist_ok=True)
+    cms.to_pickle(OUTPUT_PATH)
     return cms

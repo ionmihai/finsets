@@ -96,13 +96,19 @@ def features(df: pd.DataFrame=None
 
     out = df.sort_index().copy()
 
-    for x in ['xrd','xsga']:
-        out[f'{x}0'] = np.where(out[x].isnull() & out['at'].notnull(), 0, out[x])
-        out[f'{x}0'] = np.where(out[f'{x}0'].isnull() & out['at'].isnull(), out[f'{x}0'].interpolate(), out[f'{x}0'])
+    for x in ['xrd','xsga','rdip']: out[f'{x}0'] = out[x].fillna(0)
 
-    out['sga'] = np.where(out['xsga'].isnull() | out['xrd0'].between(out['xsga0'],out['cogs']) 
-                        ,out['xsga0'].fillna(0),
-                        out['xsga0'] - out['xrd0'] - out['rdip'].fillna(0))    
+    out['sga'] = np.where(out['xrd0'].between(out['xsga0'],out['cogs']) 
+                        ,out['xsga0'],
+                        out['xsga0'] - out['xrd0'] - out['rdip0'])
+    if False:
+        for x in ['xrd','xsga']:
+            out[f'{x}0'] = np.where(out[x].isnull() & out['at'].notnull(), 0, out[x])
+            out[f'{x}0'] = np.where(out[f'{x}0'].isnull() & out['at'].isnull(), out[f'{x}0'].interpolate(), out[f'{x}0'])
+
+        out['sga'] = np.where(out['xsga'].isnull() | out['xrd0'].between(out['xsga0'],out['cogs']) 
+                            ,out['xsga0'].fillna(0),
+                            out['xsga0'] - out['xrd0'] - out['rdip'].fillna(0))    
 
     #They use ppegt below. I believe it should be ppent.
     out['k_phy'] = out['ppent'] #+ pdm.rdiff(out['dp']) #we reconstruct gross ppe because ppegt has a lot of missing values
