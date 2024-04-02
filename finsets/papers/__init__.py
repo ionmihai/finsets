@@ -4,6 +4,5 @@ from . import (
     gilchrist_zakrajsek_2012,
     dickerson_etal_2023,
     peters_taylor_2016,
-    greenwood_hanson_2013,
     hoberg_phillips_2010
 )
