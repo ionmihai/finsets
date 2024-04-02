@@ -226,7 +226,7 @@ def features(df: pd.DataFrame=None
     # cash flow vars
     out['cflow_is'] = (df['ibq']+df['dpq']) 
     out['cflow_cfs'] = out['oancfy_q'] 
-    out['cflow_full'] = np.where(df.dtdate.dt.year<1987, out['cflow_is'], out['cflow_cfs'])
+    out['cflow_full'] = np.where(df.dtdate.dt.year<=1987, out['cflow_is'], out['cflow_cfs'])
     for v in ['cflow_is','cflow_cfs','cflow_full']:
         out[f'{v}_2la'] = out[v] / out['lag_atq']
 

@@ -66,7 +66,8 @@ def calculate_default_prob(df: pd.DataFrame=None):
 
     df['DD'] = (np.log(df.V / df.F) + df.lbhret12 - 0.5*(df.sigmaV**2)) / df.sigmaV
     df['DD'] = pdm.wins(df['DD'])
-    df['EDF'] = norm.cdf(-df.DD) #expected default probability
+    df = df.dropna(subset=['DD'])
+    df['EDF'] = norm.cdf(-df.DD.astype('float64')) #expected default probability
 
     return df
 
