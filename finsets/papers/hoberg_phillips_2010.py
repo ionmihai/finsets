@@ -38,12 +38,11 @@ def get_raw_data(url: str=URL,
 
     response = requests.get(url)
     if response.status_code == 200:
-        # Decompress the file first with zip and then with gzip
+        # Decompress the file first with zip
         with io.BytesIO(response.content) as compressed_file:
             with zipfile.ZipFile(compressed_file, 'r') as zip_ref:
                 with zip_ref.open(txt_file) as data_file:
-                    #with open(data_file, 'rb') as final_gzip_file:
-                        df = pd.read_csv(io.BytesIO(data_file.read()),delimiter='\t' ,header=0)
+                    df = pd.read_csv(io.BytesIO(data_file.read()),delimiter='\t' ,header=0)
     else:
         print("Failed to download the file. Status code:", response.status_code)
     
