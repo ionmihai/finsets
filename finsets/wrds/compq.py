@@ -161,17 +161,22 @@ def ytd_to_quarterly(df: pd.DataFrame=None,
 ) -> pd.DataFrame:
     """Convert YTD variables to quarterly variables by taking the difference between the current and previous quarter."""
 
-    out = df.reset_index().set_index(['gvkey','Qdate_fiscal']).sort_index().copy()
+    #out = df.reset_index().set_index(['gvkey','Qdate_fiscal']).sort_index().copy()
+
+    out = (df.reset_index().drop_duplicates(subset=['gvkey','Qdate_fiscal'])
+           .set_index(['gvkey','Qdate_fiscal'])
+           .sort_index().copy())
 
     new_vars = []
     for v in vars:
         if v in list(out.columns):  
             new_vars.append(v+suffix)
             out[v+suffix] = np.where(out['fqtr']==1, out[v],out[v] - pdm.lag(out[v]))
+
         else:
             print(f"Variable {v} not found in the dataset")
 
-    return out.reset_index().set_index(['gvkey','Qdate'])[new_vars].copy()
+    return out.reset_index().set_index(['gvkey','Qdate']).copy() #[new_vars]
 
 # %% ../../nbs/01_wrds/04_compq.ipynb 22
 def features(df: pd.DataFrame=None
@@ -179,59 +184,59 @@ def features(df: pd.DataFrame=None
     """Computes a set of features from `df`"""
     
     # convert ytd variables to quarterly
-    out = ytd_to_quarterly(df, suffix='_q')
+    df = ytd_to_quarterly(df, suffix='_q')
 
     # industry 
-    out['sic_full'] = df['sich'].astype('object').fillna(df['sic'].astype('object')).astype('category')
-    out['naics_full'] = df['naicsh'].astype('object').fillna(df['naics'].astype('object')).astype('category')
+    df['sic_full'] = df['sich'].astype('object').fillna(df['sic'].astype('object')).astype('category')
+    df['naics_full'] = df['naicsh'].astype('object').fillna(df['naics'].astype('object')).astype('category')
 
     # size
-    out['stock_price'] = np.abs(df['prccq'])
-    out['mktcap'] = out['stock_price'] * df['cshoq']
-    out['lag_atq'] = pdm.lag(df['atq'])
+    df['stock_price'] = np.abs(df['prccq'])
+    df['mktcap'] = df['stock_price'] * df['cshoq']
+    df['lag_atq'] = pdm.lag(df['atq'])
 
     # book equity vars
-    out['pstkq0'] = df['pstkq'].fillna(0)
-    out['pref_stock'] = np.where(df['pstkrq'].isnull(), out['pstkq0'], df['pstkrq'])
-    out['shreq'] = np.where(df['seqq'].isnull(), df['ceqq'] + out['pstkq0'], df['seqq'])
-    out['shreq'] = np.where(out['shreq'].isnull(), df['atq'] - df['ltq'], out['shreq'])
-    out['bookeq'] = out['shreq'] + df['txditcq'].fillna(0) - out['pref_stock']
+    df['pstkq0'] = df['pstkq'].fillna(0)
+    df['pref_stock'] = np.where(df['pstkrq'].isnull(), df['pstkq0'], df['pstkrq'])
+    df['shreq'] = np.where(df['seqq'].isnull(), df['ceqq'] + df['pstkq0'], df['seqq'])
+    df['shreq'] = np.where(df['shreq'].isnull(), df['atq'] - df['ltq'], df['shreq'])
+    df['bookeq'] = df['shreq'] + df['txditcq'].fillna(0) - df['pref_stock']
 
     # issuance vars
-    out['equityiss_tot'] = (pdm.rdiff(out['bookeq']) - pdm.rdiff(df['req'])) 
-    out['equityiss_cfs'] = (out['sstky_q'].fillna(0) - out['prstkcy_q'].fillna(0))
-    out['debtiss_tot'] = (pdm.rdiff(df['atq']) - pdm.rdiff(out['bookeq'])) 
-    out['debtiss_cfs'] = (out['dltisy_q'].fillna(0) - out['dltry_q'].fillna(0)) 
-    out['debtiss_bs'] = (pdm.rdiff(df['dlttq']) + pdm.rdiff(df['dlcq'].fillna(0))) 
+    df['equityiss_tot'] = (pdm.rdiff(df['bookeq']) - pdm.rdiff(df['req'])) 
+    df['equityiss_cfs'] = (df['sstky_q'].fillna(0) - df['prstkcy_q'].fillna(0))
+    df['debtiss_tot'] = (pdm.rdiff(df['atq']) - pdm.rdiff(df['bookeq'])) 
+    df['debtiss_cfs'] = (df['dltisy_q'].fillna(0) - df['dltry_q'].fillna(0)) 
+    df['debtiss_bs'] = (pdm.rdiff(df['dlttq']) + pdm.rdiff(df['dlcq'].fillna(0))) 
     for v in ['equityiss_tot','equityiss_cfs','debtiss_tot','debtiss_cfs','debtiss_bs']:
-        out[f'{v}_2la'] = out[v] / out['lag_atq']
+        df[f'{v}_2la'] = df[v] / df['lag_atq']
 
     # investment vars
-    out['ppent_pch'] = pdm.rpct_change(df['ppentq'])
-    out['capx_2la'] = out['capxy_q'] / out['lag_atq']
-    out['tobinq'] = (df['atq'] - out['bookeq'] + out['mktcap']) / df['atq']
+    df['ppent_pch'] = pdm.rpct_change(df['ppentq'])
+    df['capx_2la'] = df['capxy_q'] / df['lag_atq']
+    df['tobinq'] = (df['atq'] - df['bookeq'] + df['mktcap']) / df['atq']
 
     # profitability vars
-    out['roa'] = df['ibq'] / df['atq']
+    df['roa'] = df['ibq'] / df['atq']
 
     # cash flow vars
-    out['cflow_is'] = (df['ibq']+df['dpq']) 
-    out['cflow_cfs'] = out['oancfy_q'] 
-    out['cflow_full'] = np.where(df.dtdate.dt.year<1987, out['cflow_is'], out['cflow_cfs'])
+    df['cflow_is'] = (df['ibq']+df['dpq']) 
+    df['cflow_cfs'] = df['oancfy_q'] 
+    df['cflow_full'] = np.where(df.dtdate.dt.year<1987, df['cflow_is'], df['cflow_cfs'])
     for v in ['cflow_is','cflow_cfs','cflow_full']:
-        out[f'{v}_2la'] = out[v] / out['lag_atq']
+        df[f'{v}_2la'] = df[v] / df['lag_atq']
 
     # liquidity vars
-    out['cash_2a'] = df['cheq'] / df['atq']
+    df['cash_2a'] = df['cheq'] / df['atq']
 
     # leverage vars
-    out['booklev'] = (df['dlttq'] + df['dlcq']) / df['atq']
-    out.loc[out.booklev<0, 'booklev'] = 0
-    out.loc[out.booklev>1, 'booklev'] = 1
+    df['booklev'] = (df['dlttq'] + df['dlcq']) / df['atq']
+    df.loc[df.booklev<0, 'booklev'] = 0
+    df.loc[df.booklev>1, 'booklev'] = 1
 
-    # payout vars
-    out['dividends_2la'] = (out['dvy_q'].fillna(0)+df['dvpq'].fillna(0)) / out['lag_atq']
-    out['repurchases_2la'] = (out['prstkcy_q'].fillna(0) - pdm.rdiff(df['pstkrq']).fillna(0)) / out['lag_atq']
+    # paydf vars
+    df['dividends_2la'] = (df['dvy_q'].fillna(0)+df['dvpq'].fillna(0)) / df['lag_atq']
+    df['repurchases_2la'] = (df['prstkcy_q'].fillna(0) - pdm.rdiff(df['pstkrq']).fillna(0)) / df['lag_atq']
     
-    out = out.replace([np.inf, -np.inf], np.nan)
-    return out 
+    df = df.replace([np.inf, -np.inf], np.nan)
+    return df 
